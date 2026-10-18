@@ -8,6 +8,15 @@ load(
     "rust_library",
 )
 
+load(
+    "//bazel:cpp_api_from_rust.bzl",
+    "cpp_api_from_rust",
+)
+load(
+    "//cc_bindings_from_rs/test/golden:golden_test.bzl",
+    "golden_test",
+)
+load("//common:crubit_wrapper_macros_oss.bzl", "crubit_cc_test")
 # Disabled in OSS: crubit_ios_device_test is Google-internal.
 # load(
 #     "//google_internal/build_flavors:crubit_build_flavors_ios_device.bzl",
@@ -87,12 +96,13 @@ rust_library(
 #     ],
 # )
 
-crubit_ios_device_test(
-    name = "user_of_rust_lib_on_ios_device",
-    srcs = ["user_of_rust_lib.cc"],
-    deps = [
-        ":foo_cc_proto",
-        ":rust_lib_cc_api",
-        "@googletest//:gtest_main",
-    ],
-)
+# Disabled in OSS: crubit_ios_device_test is Google-internal.
+# crubit_ios_device_test(
+#     name = "user_of_rust_lib_on_ios_device",
+#     srcs = ["user_of_rust_lib.cc"],
+#     deps = [
+#         ":foo_cc_proto",
+#         ":rust_lib_cc_api",
+#         "@googletest//:gtest_main",
+#     ],
+# )
