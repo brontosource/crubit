@@ -64,6 +64,26 @@ crate.from_cargo(
         "//:Cargo.toml",
     ],
 )
+
+# Crates that only Bazel targets use, so no Cargo workspace member pulls them in.
+[
+    crate.spec(
+        package = package,
+        repositories = ["crate_index"],
+        version = version,
+    )
+    for package, version in [
+        ("aho-corasick", "1"),
+        ("bumpalo", "3"),
+        ("cxx", "1"),
+        ("libc", "0.2"),
+        ("maplit", "1"),
+        ("open-enum", "0.5"),
+        ("ra-ap-rustc_lexer", "0.165.0"),
+        ("rstest", "0.16"),
+    ]
+]
+
 use_repo(crate, "crate_index")
 
 crubit_toolchains = use_extension("//bazel:extensions.bzl", "crubit_toolchains")
