@@ -28,6 +28,7 @@ filegroup(
     srcs = [
         "allocator.h",
         "conversion_function_helpers.h",
+        "macos_sdk_workarounds.h",
     ],
     compatible_with = [
         "//buildenv/target:non_prod",
