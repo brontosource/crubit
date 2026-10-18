@@ -72,6 +72,9 @@ def compile_cc(
         compilation_outputs = compilation_outputs,
         linking_contexts = [cc_info.linking_context],
         user_link_flags = backrefs_flag,
+        # Apple's linker doesn't allow undefined symbols in dylibs, and these backward references
+        # are only resolved when linking the final binary. Link statically there instead.
+        disallow_dynamic_library = "apple" in cc_toolchain.target_gnu_system_name,
     )
 
     debug_context = cc_common.merge_debug_context([
