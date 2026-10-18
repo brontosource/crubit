@@ -1,0 +1,29 @@
+Make ABSL_POINTERS_DEFAULT_NONNULL apply `#pragma nullability file_default nonnull`.
+
+In open-source Abseil the macro is a no-op, unlike Google-internal Abseil, so
+Crubit (which handles this pragma) would treat unannotated pointers in such
+files as nullable. Compilers without a handler for the pragma ignore it, and
+clang's -Wunknown-pragmas warning is suppressed.
+
+diff --git a/absl/base/nullability.h b/absl/base/nullability.h
+--- a/absl/base/nullability.h
++++ b/absl/base/nullability.h
+@@ -220,8 +220,17 @@
+ //     T* absl_nullable GetNullablePtr();          // explicitly nullable
+ //     T* GetUnknownPtr();                           // implicitly unknown
+ //
+-// No-op except for being a human readable signal.
++// No-op except for being a human readable signal (and for tools that support
++// `#pragma nullability file_default`, such as Crubit).
++#if defined(__clang__)
++#define ABSL_POINTERS_DEFAULT_NONNULL                         \
++  _Pragma("clang diagnostic push")                            \
++      _Pragma("clang diagnostic ignored \"-Wunknown-pragmas\"") \
++          _Pragma("nullability file_default nonnull")         \
++              _Pragma("clang diagnostic pop")
++#else
+ #define ABSL_POINTERS_DEFAULT_NONNULL
++#endif
+ 
+ #if defined(__clang__) && !defined(__OBJC__) && \
+     ABSL_HAVE_FEATURE(nullability_on_classes)
