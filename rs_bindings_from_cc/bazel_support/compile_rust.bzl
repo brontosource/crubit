@@ -21,6 +21,10 @@ load("@bazel_skylib//lib:structs.bzl", "structs")
 _extra_rustc_flags = [
     # b/540237308: Hide thunk symbols to avoid unnecessary GOT/PLT overhead.
     "-Zdefault-visibility=hidden",
+    # Generated bindings sometimes elide a lifetime that is named elsewhere in the same signature
+    # (e.g. `Pin<&'__this mut Self>` -> `RvalueReference<'_, ...>`), which newer rustc versions
+    # warn about, and generated bindings `#![deny(warnings)]`.
+    "-Amismatched_lifetime_syntaxes",
 ]
 
 def _version_parts(version):

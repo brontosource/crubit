@@ -116,3 +116,5 @@ alias(
     name = "rust_api_from_cpp_legacy_mangling_allowlist",
     actual = "//rs_bindings_from_cc/bazel_support:legacy_mangling_allowlist",
 )
+
+exports_files(["rustfmt.toml"])
