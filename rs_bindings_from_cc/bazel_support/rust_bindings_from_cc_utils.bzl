@@ -24,7 +24,6 @@ load(
 )
 load("@rules_crubit//rs_bindings_from_cc/bazel_support:compile_cc.bzl", "compile_cc")
 load("@rules_crubit//rs_bindings_from_cc/bazel_support:compile_rust.bzl", "compile_rust")
-load("@rules_crubit//rs_bindings_from_cc/bazel_support:encode_raw_string_as_crate_name.bzl", "encode_raw_string_as_crate_name")
 load(
     "@rules_crubit//rs_bindings_from_cc/bazel_support:generate_bindings.bzl",
     "escape_cpp_target_name",
@@ -291,11 +290,6 @@ def generate_and_compile_bindings(
         compile_data = compile_data_relocated,
         rustc_env = rustc_env,
     )
-
-    if use_label_encoded_names_for_deps:
-        name = encode_raw_string_as_crate_name(str(dep_variant_info.crate_info.owner))
-    else:
-        name = dep_variant_info.crate_info.name
 
     # The headers, header modules, and linking information of the impl and its deps flow to
     # dependents as non-exported deps. Only `exported_cc_infos` (one level) and `support_cc_info`
