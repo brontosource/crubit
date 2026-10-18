@@ -2,5 +2,6 @@
 # Exceptions. See /LICENSE for license information.
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-# This directory is built as its own module.
+# These directories are built as their own modules.
 crubit_explorer
+examples/build_systems

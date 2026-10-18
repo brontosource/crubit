@@ -20,3 +20,5 @@ bzl_library(
         "//rs_bindings_from_cc/bazel_support:rust_api_from_cpp",
     ],
 )
+
+exports_files(["rustfmt.toml"])
