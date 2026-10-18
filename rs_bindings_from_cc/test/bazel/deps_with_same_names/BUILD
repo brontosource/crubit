@@ -86,6 +86,9 @@ cc_library(
 rust_api_from_cpp(
     name = "lib_proto_deps_rust",
     cpp_target = ":lib_proto_deps",
+    # The generated bindings use `ProtoMessageRustBridge`, which only Google's internal protobuf Rust
+    # codegen provides.
+    tags = ["manual"],
 )
 
 rust_library(
@@ -93,6 +96,9 @@ rust_library(
     srcs = ["proto_deps.rs"],
     edition = "2024",
     deps = [":lib_proto_deps_rust"],
+    # The generated bindings use `ProtoMessageRustBridge`, which only Google's internal protobuf Rust
+    # codegen provides.
+    tags = ["manual"],
 )
 
 # Mixed dependency collision test (additional_rust_srcs + regular C++ deps)
@@ -195,7 +201,7 @@ build_test(
     targets = [
         ":lib_with_two_direct_deps_with_same_name",
         ":lib_with_indirect_deps_with_same_names",
-        ":lib_with_proto_deps_with_same_names",
+        # Not ":lib_with_proto_deps_with_same_names", which is manual (see above).
         ":lib_with_mixed_deps",
         ":lib_with_aspect_hint_dep",
         ":cc_deps_test",

@@ -39,4 +39,8 @@ crubit_rust_test(
         "//support:cref",
         "@crate_index//:googletest",
     ],
+    # `extern template class MyTemplate<int>` suppresses the instantiation, and nothing in this
+    # package provides the explicit instantiation definition, so the inline members are undefined
+    # when linking without optimizations.
+    tags = ["manual"],
 )
