@@ -1,0 +1,75 @@
+Enable Crubit bindings for the Abseil targets whose types Crubit supports.
+
+Google-internal Abseil sets these aspect_hints in its own BUILD files. The hint
+is referenced by canonical label (@@//...), so this patch only works when Crubit
+is the root module.
+
+diff --git a/absl/numeric/BUILD.bazel b/absl/numeric/BUILD.bazel
+--- a/absl/numeric/BUILD.bazel
++++ b/absl/numeric/BUILD.bazel
+@@ -80,6 +80,9 @@
+ 
+ cc_library(
+     name = "int128",
++    # Enable Crubit (C++/Rust interop) bindings for this target. Referenced by
++    # canonical label, since Abseil has no repo mapping for Crubit's module.
++    aspect_hints = ["@@//features:supported"],
+     srcs = [
+         "int128.cc",
+         "int128_have_intrinsic.inc",
+diff --git a/absl/functional/BUILD.bazel b/absl/functional/BUILD.bazel
+--- a/absl/functional/BUILD.bazel
++++ b/absl/functional/BUILD.bazel
+@@ -37,6 +37,9 @@
+ 
+ cc_library(
+     name = "any_invocable",
++    # Enable Crubit (C++/Rust interop) bindings for this target. Referenced by
++    # canonical label, since Abseil has no repo mapping for Crubit's module.
++    aspect_hints = ["@@//features:supported"],
+     srcs = ["internal/any_invocable.h"],
+     hdrs = ["any_invocable.h"],
+     copts = ABSL_DEFAULT_COPTS,
+diff --git a/absl/types/BUILD.bazel b/absl/types/BUILD.bazel
+--- a/absl/types/BUILD.bazel
++++ b/absl/types/BUILD.bazel
+@@ -81,6 +81,13 @@
+ 
+ cc_library(
+     name = "span",
++    # Enable Crubit (C++/Rust interop) bindings for this target. Referenced by
++    # canonical label, since Abseil has no repo mapping for Crubit's module.
++    aspect_hints = [
++        "@@//features:supported",
++        # The Rust `absl::Span` types that Crubit maps `absl::Span<T>` to.
++        "@@//support/absl_span:span",
++    ],
+     srcs = [
+         "internal/span.h",
+     ],
+diff --git a/absl/strings/BUILD.bazel b/absl/strings/BUILD.bazel
+--- a/absl/strings/BUILD.bazel
++++ b/absl/strings/BUILD.bazel
+@@ -36,6 +36,9 @@
+ 
+ cc_library(
+     name = "string_view",
++    # Enable Crubit (C++/Rust interop) bindings for this target. Referenced by
++    # canonical label, since Abseil has no repo mapping for Crubit's module.
++    aspect_hints = ["@@//features:supported"],
+     hdrs = ["string_view.h"],
+     copts = ABSL_DEFAULT_COPTS,
+     linkopts = ABSL_DEFAULT_LINKOPTS,
+diff --git a/absl/time/BUILD.bazel b/absl/time/BUILD.bazel
+--- a/absl/time/BUILD.bazel
++++ b/absl/time/BUILD.bazel
+@@ -37,6 +37,9 @@
+ 
+ cc_library(
+     name = "time",
++    # Enable Crubit (C++/Rust interop) bindings for this target. Referenced by
++    # canonical label, since Abseil has no repo mapping for Crubit's module.
++    aspect_hints = ["@@//features:supported"],
+     srcs = [
+         "civil_time.cc",
+         "clock.cc",
