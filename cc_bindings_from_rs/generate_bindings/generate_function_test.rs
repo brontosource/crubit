@@ -2,6 +2,10 @@
 // Exceptions. See /LICENSE for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
+#![feature(rustc_private)]
+
+extern crate rustc_middle;
+
 use code_gen_utils::format_cc_includes;
 use proc_macro2::TokenStream;
 use quote::quote;

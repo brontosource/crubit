@@ -22,7 +22,9 @@ impl Parse for CcImportMacroInput {
 impl CcImportMacroInput {
     pub fn expand_imports(self) -> std::result::Result<TokenStream, Vec<syn::Error>> {
         let hierarchy = get_namespace_hierarchy();
-        let mut tokens = import_internal::expand_imports(self.import, &Mode::NoRenaming, &[])?;
+        // The OSS `import_internal` (vendored from rules_rust) has no third parameter; it is always
+        // empty here anyway.
+        let mut tokens = import_internal::expand_imports(self.import, &Mode::NoRenaming)?;
         hierarchy.to_tokens(&mut tokens);
         Ok(tokens)
     }

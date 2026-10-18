@@ -16,15 +16,17 @@ crubit_test_cc_library(
     hdrs = ["bar.h"],
 )
 
-cc_std_test(
-    name = "library_without_deps_test",
-    dep = ":bar",
-)
-
-cc_std_test(
-    name = "library_with_deps_test",
-    dep = ":foo",
-)
+# TODO: Relies on "rust_make_no_std" which does not exist in rules_rust.
+#
+# cc_std_test(
+#     name = "library_without_deps_test",
+#     dep = ":bar",
+# )
+# 
+# cc_std_test(
+#     name = "library_with_deps_test",
+#     dep = ":foo",
+# )
 
 sh_binary(
     name = "check_include_directives",
