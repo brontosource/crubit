@@ -30,7 +30,7 @@ bzl_library(
         ":rust_bindings_from_cc_utils_bzl",
         "//features:crubit_feature_hint_bzl",
         "@bazel_skylib//lib:collections",
-        "@protobuf//rust/bazel:aspects_bzl",
+        "@protobuf//rust/bazel:aspects.bzl",
         "@rules_cc//cc/common",
     ],
 )
@@ -80,7 +80,7 @@ bzl_library(
         ":providers_bzl",
         ":rust_bindings_from_cc_transition",
         "@rules_cc//cc/common",
-        "@rules_rust//rust/private:bzl_lib",
+        "@rules_rust//rust:bzl_lib",
     ],
 )
 
@@ -96,7 +96,7 @@ bzl_library(
         ":providers_bzl",
         "//cc_bindings_from_rs/bazel_support:providers_bzl",
         "//common/bazel_support:cc_info_util_bzl",
-        "@bazel_tools//tools/cpp:toolchain_utils",
+        "@bazel_tools//tools/cpp:toolchain_utils.bzl",
         "@rules_cc//cc/common",
     ],
 )
@@ -132,7 +132,7 @@ bzl_library(
     visibility = ["//cc_bindings_from_rs/bazel_support:__pkg__"],
     deps = [
         "@bazel_skylib//lib:structs",
-        "@rules_rust//rust/private:bzl_lib",
+        "@rules_rust//rust:bzl_lib",
     ],
 )
 
@@ -149,7 +149,7 @@ bzl_library(
         ":rust_bindings_from_cc_aspect",
         "@bazel_skylib//lib:collections",
         "@rules_cc//cc/common",
-        "@rules_rust//rust/private:providers_bzl",
+        "@rules_rust//rust:bzl_lib",
     ],
 )
 
