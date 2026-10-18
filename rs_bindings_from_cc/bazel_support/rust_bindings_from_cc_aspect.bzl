@@ -39,6 +39,7 @@ load(
     "make_aliasable_dep_info",
 )
 load("@protobuf//rust:aspects.bzl", "RustProtoInfo", "rust_cc_proto_library_aspect")
+load("//features:global_features.bzl", "SUPPORTED_FEATURES")
 load(
     "@protobuf//rust/bazel:encode_raw_string_as_crate_name.bzl",
     protobuf_encode_raw_string_as_crate_name = "encode_raw_string_as_crate_name",
@@ -264,6 +265,66 @@ def _is_cc_proto_library(rule):
 def retain_proto_dot_h_headers(headers):
     return [h for h in headers if h.path.endswith("proto.h")]
 
+def _protoc_crate_name(ctx, dep_variant_info):
+    """Returns the name generated bindings use for a protobuf crate from `_protoc_bindings_info`."""
+    if ctx.attr._use_label_encoded_names_for_deps[BuildSettingInfo].value:
+        # Like other dependencies, so that e.g. //a:proto and //b:proto don't collide. It's keyed by
+        # the crate's owner (the proto_library), as C++ targets depend on it via a cc_proto_library.
+        return crubit_encode_raw_string_as_crate_name(str(dep_variant_info.crate_info.owner))
+    return dep_variant_info.crate_info.name
+
+def _protoc_bindings_info(ctx, target):
+    """Returns a RustBindingsFromCcInfo reusing protoc's Rust bindings for a proto_library.
+
+    Rather than generating bindings for the `.pb.h` headers, C++ protobuf messages are represented
+    by the Rust protobuf crate produced by `rust_cc_proto_library_aspect`. The `.pb.h` headers are
+    attributed to this target so that C++ APIs using its messages are bound to that crate.
+
+    Args:
+      ctx: The aspect context.
+      target: The proto_library target, which provides RustProtoInfo.
+
+    Returns:
+      A RustBindingsFromCcInfo provider.
+    """
+    rust_proto_info = target[RustProtoInfo]
+    if getattr(ctx.rule.attr, "srcs", []):
+        dep_variant_info = rust_proto_info.dep_variant_infos[0]
+        pass_through_dep_variant_infos = rust_proto_info.exports_dep_variant_infos
+    else:
+        # An alias library (no srcs) has no crate of its own; pass through those of its deps.
+        dep_variant_info = None
+        pass_through_dep_variant_infos = (
+            rust_proto_info.dep_variant_infos + rust_proto_info.exports_dep_variant_infos
+        )
+
+    direct_target_args = []
+    if dep_variant_info:
+        direct_target_args.append(json.encode({
+            "t": str(ctx.label),
+            "h": [h.path for h in target[CcInfo].compilation_context.direct_public_headers],
+            "c": _protoc_crate_name(ctx, dep_variant_info),
+            # Messages are bridged to protoc's Rust types, which are always supported.
+            "f": SUPPORTED_FEATURES,
+        }))
+
+    return RustBindingsFromCcInfo(
+        cc_info = target[CcInfo],
+        dep_variant_info = dep_variant_info,
+        pass_through_dep_variant_infos = depset(pass_through_dep_variant_infos),
+        target_args = depset(
+            direct = direct_target_args,
+            transitive = [
+                dep[RustBindingsFromCcInfo].target_args
+                for dep in getattr(ctx.rule.attr, "deps", []) + getattr(ctx.rule.attr, "exports", [])
+                if RustBindingsFromCcInfo in dep
+            ],
+        ),
+        namespaces = None,
+        additional_rust_srcs = depset(),
+        extra_named_deps = depset(),
+    )
+
 def _rust_bindings_from_cc_aspect_impl(target, ctx):
 
     # We use a fake generator only when we are building the real one, in order to avoid
@@ -306,10 +367,20 @@ def _rust_bindings_from_cc_aspect_impl(target, ctx):
     if CcInfo not in target:
         return []
 
+    if RustProtoInfo in target:
+        return [_protoc_bindings_info(ctx, target)]
+
     if _is_cc_proto_library(ctx.rule):
         # This is a cc_proto_library, we are interested in RustBindingsFromCcInfo provider of the
         # proto_library.
-        return [ctx.rule.attr.deps[0][RustBindingsFromCcInfo]]
+        proto_library = ctx.rule.attr.deps[0]
+        providers = [proto_library[RustBindingsFromCcInfo]]
+
+        # Also forward RustProtoInfo, so that dependents can tell the bindings are protobuf crates
+        # (see `_protoc_bindings_info`).
+        if RustProtoInfo in proto_library and RustProtoInfo not in target:
+            providers.append(proto_library[RustProtoInfo])
+        return providers
 
     if str(ctx.label) in targets_to_remove:
         return []
@@ -412,9 +483,40 @@ def _rust_bindings_from_cc_aspect_impl(target, ctx):
         # collisions, since, by default, each dependency is presented under its
         # crate_info.name unless overridden by `aliases`.
         for dep in all_deps:
+            # The standard library bindings are always referred to as `cc_std` (both by generated
+            # bindings and by hand-written Rust), so keep their regular crate name.
+            if dep.label == ctx.attr._std.label:
+                continue
+
+            # Protobuf crates (see `_protoc_bindings_info`) are aliased by their owner.
+            if RustProtoInfo in dep:
+                bindings_info = dep[RustBindingsFromCcInfo]
+                for dep_variant_info in (
+                    ([bindings_info.dep_variant_info] if bindings_info.dep_variant_info else []) +
+                    bindings_info.pass_through_dep_variant_infos.to_list()
+                ):
+                    owner = struct(label = dep_variant_info.crate_info.owner)
+                    if owner not in aliases:
+                        aliases[owner] = _protoc_crate_name(ctx, dep_variant_info)
+                continue
             if RustBindingsFromCcInfo in dep:
                 if struct(label = dep.label) not in aliases:
                     aliases[dep] = crubit_encode_raw_string_as_crate_name(str(dep.label))
+
+                # A dependency without bindings of its own (e.g. without public headers) passes
+                # through its dependencies' crates. Generated bindings refer to those by their
+                # label-encoded name too. (Other crates passed through, like Crubit's support
+                # libraries, keep their regular names.)
+                for dep_variant_info in dep[RustBindingsFromCcInfo].pass_through_dep_variant_infos.to_list():
+                    crate_info = dep_variant_info.crate_info
+                    if (
+                        crate_info and
+                        crate_info.root.basename.endswith("_rust_api.rs") and
+                        crate_info.owner != ctx.attr._std.label
+                    ):
+                        owner = struct(label = crate_info.owner)
+                        if owner not in aliases:
+                            aliases[owner] = crubit_encode_raw_string_as_crate_name(str(crate_info.owner))
 
         # Collect dependencies of manual bindings attached to this target.
         # The Rust sources of manual bindings expect their dependencies to be
@@ -510,7 +612,7 @@ def _rust_bindings_from_cc_aspect_impl(target, ctx):
         extra_rs_bindings_from_cc_cli_flags = extra_rs_bindings_from_cc_cli_flags,
         should_generate_bindings = (
             has_public_headers or extra_rs_srcs
-        ) and not _is_cc_proto_library(target),
+        ) and not _is_cc_proto_library(ctx.rule),
         aliases = aliases,
         additional_rust_srcs = depset(
             transitive = [
