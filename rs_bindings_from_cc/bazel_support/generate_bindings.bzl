@@ -33,8 +33,8 @@ def escape_cpp_target_name(package_name, crate_name):
     # of both the package name _and_ the target name, which causes "File name too long" error.
     return "".join([char if char.isalnum() else "_" for char in crate_name.elems()])
 
-def _get_hdrs_command_line(hdrs):
-    return ["--public_headers=" + ",".join([x.path for x in hdrs])]
+def _get_hdrs_command_line(hdrs, system_hdr_paths):
+    return ["--public_headers=" + ",".join([x.path for x in hdrs] + system_hdr_paths)]
 
 def _get_extra_rs_srcs_command_line(extra_rs_srcs):
     extra_rs_src_info = []
@@ -62,6 +62,7 @@ def generate_bindings(
         feature_configuration,
         compilation_context,
         public_hdrs,
+        system_public_hdr_paths,
         header_includes,
         action_inputs,
         target_args,
@@ -78,6 +79,8 @@ def generate_bindings(
       feature_configuration: The feature configuration.
       compilation_context: The compilation context for this action.
       public_hdrs: A list of headers to be passed to the tool via the "--public_headers" flag.
+      system_public_hdr_paths: A list of absolute paths of additional public headers that are not
+        Bazel files (e.g. standard library headers in the macOS SDK).
       header_includes: A list of flags to be passed to the command line with "-include".
       action_inputs: A depset of inputs to the bindings generating action.
       target_args: A depset of strings, each one representing mapping of target to
@@ -187,7 +190,7 @@ def generate_bindings(
         ),
         variables_extension = {
             "rs_bindings_from_cc_tool": rs_bindings_from_cc_tool.path,
-            "rs_bindings_from_cc_flags": rs_bindings_from_cc_flags + _get_hdrs_command_line(public_hdrs) + _get_extra_rs_srcs_command_line(extra_rs_srcs) + _get_unstable_rust_features_command_line(unstable_rust_features) + _get_extra_cpp_srcs_command_line(extra_cpp_srcs),
+            "rs_bindings_from_cc_flags": rs_bindings_from_cc_flags + _get_hdrs_command_line(public_hdrs, system_public_hdr_paths) + _get_extra_rs_srcs_command_line(extra_rs_srcs) + _get_unstable_rust_features_command_line(unstable_rust_features) + _get_extra_cpp_srcs_command_line(extra_cpp_srcs),
             "target_args": target_args,
         },
     )
