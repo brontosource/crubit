@@ -131,6 +131,7 @@ single_version_override(
     patches = [
         "//patches:protobuf_visibility.patch",
         "//patches:protobuf_aspects_visibility.patch",
+        "//patches:protobuf_rust_bazel_exports.patch",
         "//patches:protobuf_rust_thunks.patch",
     ],
     version = "36.1.bcr.1",
