@@ -6,6 +6,11 @@ build --enable_bzlmod
 # versions that do not resolve with Crubit's.
 common --incompatible_autoload_externally=+@rules_cc,+cc_proto_library
 
+# Bazel's default macOS deployment target (10.11) predates C++17 aligned
+# allocation, which Crubit's support library uses.
+common --enable_platform_specific_config
+build:macos --macos_minimum_os=11.0 --host_macos_minimum_os=11.0
+
 # generic_clang from @llvm-raw//utils/bazel, but c++20 to match Google
 build:generic_clang --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
 build:generic_clang --cxxopt=-std=c++20 --host_cxxopt=-std=c++20 --repo_env=BAZEL_CXXOPTS=-std=c++20
