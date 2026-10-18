@@ -19,6 +19,8 @@ load(
     "llvm_repo_impl",
 )
 load("//bazel:llvm_version_check.bzl", "llvm_version_check")
+load("//bazel:system_headers.bzl", "crubit_system_headers")
+load("//support/cc_std_impl:headers.bzl", "LIBCXX_HEADERS", "LIBC_HEADERS")
 
 # buildifier: disable=bzl-visibility
 load("@rules_rust//rust/private:repositories.bzl", "DEFAULT_TOOLCHAIN_TRIPLES", "rust_register_toolchains")
@@ -201,6 +203,12 @@ def _crubit_toolchains_impl(ctx):
             name = "llvm_toolchain",
             llvm_version = final_llvm_version,
         )
+
+    # Standard library headers that live outside of Bazel (e.g. in the macOS SDK).
+    crubit_system_headers(
+        name = "crubit_system_headers",
+        public_hdrs = LIBCXX_HEADERS + LIBC_HEADERS,
+    )
 
     # 3. Define Rust repository (delegated to rules_rust)
     rust_kwargs = {}
