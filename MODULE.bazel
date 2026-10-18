@@ -93,6 +93,7 @@ crubit_toolchains.configure(
 )
 use_repo(
     crubit_toolchains,
+    "crubit_system_headers",
     "llvm_toolchain",
     "llvm_toolchain_llvm",
     "llvm_version_check",
