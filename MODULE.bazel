@@ -104,8 +104,11 @@ register_toolchains(
     "@rust_toolchains//:all",
     "@llvm_toolchain//:all",
     "//common/bazel_support/toolchains:cc_bindings_from_rs_on_demand_linux",
+    "//common/bazel_support/toolchains:cc_bindings_from_rs_on_demand_macos_arm64",
+    "//common/bazel_support/toolchains:cc_bindings_from_rs_on_demand_macos_x86_64",
     "//common/bazel_support/toolchains:rs_bindings_from_cc_on_demand_linux",
-    "//common/bazel_support/toolchains:rs_bindings_from_cc_on_demand_linux",
+    "//common/bazel_support/toolchains:rs_bindings_from_cc_on_demand_macos_arm64",
+    "//common/bazel_support/toolchains:rs_bindings_from_cc_on_demand_macos_x86_64",
     "//common/bazel_support/toolchains:rs_bindings_from_cc_fake",
 )
 
@@ -116,6 +119,7 @@ single_version_override(
     patches = [
         "//patches:protobuf_visibility.patch",
         "//patches:protobuf_aspects_visibility.patch",
+        "//patches:protobuf_rust_thunks.patch",
     ],
     version = "36.1.bcr.1",
 )
@@ -127,6 +131,7 @@ single_version_override(
     patches = [
         "//patches:rules_rust_transitive_repin.patch",
         "//bazel/rules_rust:attach_rust_bindings_from_cc_aspect.patch",
+        "//patches:rules_rust_case_insensitive_ambiguous_libs.patch",
     ],
     version = "0.71.3",
 )

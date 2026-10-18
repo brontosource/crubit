@@ -1,0 +1,17 @@
+# Part of the Crubit project, under the Apache License v2.0 with LLVM
+# Exceptions. See /LICENSE for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+--- a/rust/private/rustc.bzl
++++ b/rust/private/rustc.bzl
+@@ -591,6 +591,11 @@
+             artifact = get_preferred_artifact(lib, use_pic)
+             name = get_lib_name_for_windows(artifact) if toolchain.target_os.startswith("windows") else get_lib_name_default(artifact)
+ 
++            # macOS and Windows file systems are usually case-insensitive, so
++            # `-lSupport` may resolve to `libsupport.a`. Treat names that differ
++            # only in case as ambiguous.
++            name = name.lower()
++
+             # On Linux-like platforms, normally library base names start with
+             # `lib`, following the pattern `lib[name].(a|lo)` and we pass
+             # -lstatic=name.

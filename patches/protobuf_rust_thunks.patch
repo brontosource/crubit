@@ -1,0 +1,38 @@
+Fix building the C++ thunks of rust_proto_library on macOS.
+
+* Compile them under a flattened name, so that their outputs (under
+  `<package>/<name>/`) cannot collide with a target named after the package.
+* Do not link them into a dylib on Apple platforms, where undefined symbols are
+  not allowed in dylibs.
+
+--- a/rust/bazel/aspects.bzl
++++ b/rust/bazel/aspects.bzl
+@@ -220,8 +220,10 @@
+     """
+     cc_info = cc_common.merge_cc_infos(direct_cc_infos = cc_infos)
+ 
++    # Flatten the path, so that the outputs (which are placed under a directory named `name`)
++    # can't collide with a target named after the package, e.g. //foo:foo.
+     (compilation_context, compilation_outputs) = cc_common.compile(
+-        name = src.short_path,
++        name = src.short_path.replace("/", "_"),
+         actions = ctx.actions,
+         feature_configuration = feature_configuration,
+         cc_toolchain = cc_toolchain,
+@@ -231,12 +233,15 @@
+     )
+ 
+     (linking_context, _) = cc_common.create_linking_context_from_compilation_outputs(
+-        name = src.short_path,
++        name = src.short_path.replace("/", "_"),
+         actions = ctx.actions,
+         feature_configuration = feature_configuration,
+         cc_toolchain = cc_toolchain,
+         compilation_outputs = compilation_outputs,
+         linking_contexts = [cc_info.linking_context],
++        # Apple's linker doesn't allow the undefined symbols (defined by the C++ proto library)
++        # that a dylib of just the thunks would have.
++        disallow_dynamic_library = "apple" in cc_toolchain.target_gnu_system_name,
+     )
+ 
+     return CcInfo(
