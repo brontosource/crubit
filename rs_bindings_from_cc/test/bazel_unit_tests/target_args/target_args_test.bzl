@@ -255,6 +255,8 @@ def _test_toolchain_headers_in_header_analysis_action():
     toolchain_headers_in_header_analysis_action_test(
         name = "toolchain_headers_in_header_analysis_action_test",
         target_under_test = ":somelib_with_aspect",
+        # Checks for Google-internal libc header paths (//nowhere/libc_*include/inttypes.h).
+        tags = ["manual"],
     )
 
 def _extra_cpp_srcs_in_header_analysis_action_test_impl(ctx):
@@ -513,7 +515,8 @@ def target_args_test(name):
             ":targets_and_headers_propagate_with_cc_info_test",
             ":textual_hdrs_not_in_targets_and_hdrs_test",
             ":lib_has_toolchain_targets_and_headers_test",
-            ":toolchain_headers_in_header_analysis_action_test",
+            # Not ":toolchain_headers_in_header_analysis_action_test", which is manual (it checks
+            # for Google-internal paths), but would still run if listed here.
             ":extra_cpp_srcs_in_header_analysis_action_test",
             ":generated_headers_specified_with_full_path_test",
             ":target_features_empty_test",
