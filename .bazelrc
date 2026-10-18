@@ -28,6 +28,12 @@ build:generic_clang --host_per_file_copt=^support/.*@-Wenum-compare-conditional,
 
 build --config=generic_clang
 build --@rules_rust//rust/toolchain/channel=nightly
+# Recent nightly rustc mangles the allocator shim symbols (`__rustc::...`), so C++
+# binaries that link Rust code need rules_rust's Rust-built allocator libraries.
+build --@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True
+# rustfmt config for generated bindings; without an edition, rustfmt assumes
+# 2015 and rejects raw lifetimes such as 'r#type.
+build --@rules_rust//rust/settings:rustfmt.toml=//bazel:rustfmt.toml
 build --@llvm-project//third-party:llvm_enable_lzma=false
 build --@llvm-project//third-party:llvm_enable_zlib=false
 build --@llvm-project//third-party:llvm_enable_zstd=false
