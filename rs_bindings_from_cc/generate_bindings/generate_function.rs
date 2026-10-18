@@ -3891,5 +3891,14 @@ pub fn adjust_signature_for_indexing_traits<'a>(
 /// This is an implementation of a method of `BindingsGenerator<'db>` - for more
 /// information please see the corresponding doc comment in `db.rs`.
 pub fn mangled_name_counts(db: &BindingsGenerator<'_>) -> Rc<HashMap<Rc<str>, usize>> {
-    Rc::new(db.ir().functions().map(|f| Rc::from(f.mangled_name())).counts())
+    // Names are compared without the `\x01` (don't-mangle) prefix, like the thunk identifiers
+    // derived from them (see `ident_fragment_from_mangled_name`). Clang only adds that prefix (for
+    // `asm` labels) on targets that otherwise prefix symbols, such as macOS, so e.g. `foo` and an
+    // `asm("foo")` label still conflict there.
+    Rc::new(
+        db.ir()
+            .functions()
+            .map(|f| Rc::from(f.mangled_name().strip_prefix('\u{1}').unwrap_or(f.mangled_name())))
+            .counts(),
+    )
 }
