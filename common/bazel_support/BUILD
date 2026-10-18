@@ -88,11 +88,11 @@ rs_bindings_from_cc_toolchain(
     name = "rs_bindings_from_cc_on_demand_impl",
     binary = "//rs_bindings_from_cc:rs_bindings_from_cc",
     builtin_headers = [
-        "//llvm/llvm-project/clang:builtin_headers_filegroup",
-        "//llvm/llvm-project/compiler-rt:fuzzer_filegroup",
-        "//llvm/llvm-project/compiler-rt:sanitizer_filegroup",
+        "@llvm-project//clang:builtin_headers_files",
+        "@llvm-project//compiler-rt:fuzzer_installed_hdrs",
+        "@llvm-project//compiler-rt:sanitizer_installed_hdrs",
     ],
-    stl_headers = ["//nowhere/llvm:cc-std-headers"],
+    stl_headers = [],
 )
 
 rs_bindings_from_cc_toolchain(
