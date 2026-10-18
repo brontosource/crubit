@@ -23,6 +23,13 @@ load(
     "//rs_bindings_from_cc/bazel_support:additional_rust_srcs_for_crubit_bindings_aspect_hint.bzl",
     "additional_rust_srcs_for_crubit_bindings",
 )
+# load("@bazel_skylib//rules:build_test.bzl", "build_test")
+# load("@rules_cc//cc:cc_library.bzl", "cc_library")
+# load("@rules_rust//rust:defs.bzl", "rust_library")
+# load(
+#     "//rs_bindings_from_cc/bazel_support:additional_rust_srcs_for_crubit_bindings_aspect_hint.bzl",
+#     "additional_rust_srcs_for_crubit_bindings",
+# )
 
 package(
     default_testonly = 1,
@@ -84,3 +91,56 @@ build_test(
         ":any_invocable_usage_rust",
     ],
 )
+# Disabled in OSS: needs the Google-internal Crubit ABI for absl::AnyInvocable
+# (absl/functional/any_invocable_crubit_abi.h, and the Rust AnyInvocableAbi and
+# RawAnyInvocable types).
+# # TODO(b/541216309): Remove when @abseil-cpp//absl/functional:any_invocable is removed
+# # from legacy_mangling_allowlist.
+# _tags = [
+#     "notap",
+#     "noguitar",
+#     "manual",
+#     "nobuilder",
+# ]
+#
+# rust_library(
+#     name = "any_invocable",
+#     srcs = ["rust_any_invocable.rs"],
+#     edition = "2024",
+#     tags = _tags,
+# )
+#
+# additional_rust_srcs_for_crubit_bindings(
+#     name = "extra_srcs",
+#     srcs = ["extra.rs"],
+#     deps = [":any_invocable"],
+# )
+#
+# cc_library(
+#     name = "any_invocable_usage_cc",
+#     hdrs = ["any_invocable_usage.h"],
+#     aspect_hints = [
+#         ":extra_srcs",
+#         "//features:supported",
+#     ],
+#     tags = _tags,
+#     deps = [
+#         "@abseil-cpp//absl/functional:any_invocable",
+#     ],
+# )
+#
+# rust_library(
+#     name = "any_invocable_usage_rust",
+#     srcs = ["any_invocable_usage.rs"],
+#     cc_deps = [":any_invocable_usage_cc"],
+#     edition = "2024",
+#     tags = _tags,
+# )
+#
+# build_test(
+#     name = "build_test",
+#     tags = _tags,
+#     targets = [
+#         ":any_invocable_usage_rust",
+#     ],
+# )
