@@ -104,6 +104,8 @@ register_toolchains(
     "@rust_toolchains//:all",
     "@llvm_toolchain//:all",
     "//common/bazel_support/toolchains:cc_bindings_from_rs_on_demand_linux",
+    "//common/bazel_support/toolchains:rs_bindings_from_cc_on_demand_linux",
+    "//common/bazel_support/toolchains:rs_bindings_from_cc_fake",
 )
 
 # TODO(b/379928127): Remove this override once cl/974009395 is released in BCR.
@@ -112,6 +114,7 @@ single_version_override(
     patch_strip = 1,
     patches = [
         "//patches:protobuf_visibility.patch",
+        "//patches:protobuf_aspects_visibility.patch",
     ],
     version = "36.1.bcr.1",
 )
@@ -122,6 +125,7 @@ single_version_override(
     patch_strip = 1,
     patches = [
         "//patches:rules_rust_transitive_repin.patch",
+        "//bazel/rules_rust:attach_rust_bindings_from_cc_aspect.patch",
     ],
     version = "0.71.3",
 )
