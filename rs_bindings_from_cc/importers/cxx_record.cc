@@ -1031,7 +1031,9 @@ bool IsKnownAttr(const clang::Attr& attr) {
          clang::isa<clang::ReentrantCapabilityAttr>(attr) ||
          clang::isa<clang::UnusedAttr>(attr) ||
          clang::isa<clang::PackedAttr>(attr) ||
-         clang::isa<clang::MaxFieldAlignmentAttr>(attr);
+         clang::isa<clang::MaxFieldAlignmentAttr>(attr) ||
+         // Only affects diagnostics. Open-source protobuf marks messages with it.
+         clang::isa<clang::WarnUnusedAttr>(attr);
 }
 
 static crubit::ffi::StatusOrOptionalString ToFlatProto(
