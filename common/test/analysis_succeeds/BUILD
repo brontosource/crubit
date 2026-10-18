@@ -40,4 +40,6 @@ cpp_api_from_rust(
 unsupported_by_crubit(
     name = "analysis_succeeds",
     aspect_hints = [":rust_lib_cc"],
+    # OSS registers no Rust or C++ toolchains for the Android platform this transitions to.
+    tags = ["manual"],
 )

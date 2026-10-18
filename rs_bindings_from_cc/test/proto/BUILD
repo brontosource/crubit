@@ -59,4 +59,7 @@ crubit_rust_test(
         "//support:forward_declare",
         "@crate_index//:googletest",
     ],
+    # The generated bindings use `ProtoMessageRustBridge`, which only Google's internal protobuf Rust
+    # codegen provides.
+    tags = ["manual"],
 )
