@@ -67,7 +67,7 @@ def _protoc_bindings_used_for_protobufs_impl(ctx):
     bindings_info = tut[RustBindingsFromCcInfo]
 
     references_protobuf_cpp = any([
-        "@protobuf//rust:protobuf_cpp" == str(key.label)
+        Label("@protobuf//rust:protobuf_cpp") == key.label
         for key in bindings_info.dep_variant_info.crate_info.aliases.keys()
     ])
 
