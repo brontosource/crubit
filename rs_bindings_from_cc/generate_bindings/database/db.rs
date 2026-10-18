@@ -408,8 +408,10 @@ impl<'db> BindingsGenerator<'db> {
 
     /// Returns true if `func` has a conflicting mangled name.
     pub fn has_conflicting_mangled_name(&self, func: &ir::Func<'_>) -> bool {
-        let conflicts_counter =
-            self.mangled_name_counts().get(func.mangled_name()).copied().unwrap_or(0);
+        // See `mangled_name_counts` for why the `\x01` prefix is stripped.
+        let mangled_name = func.mangled_name();
+        let mangled_name = mangled_name.strip_prefix('\u{1}').unwrap_or(mangled_name);
+        let conflicts_counter = self.mangled_name_counts().get(mangled_name).copied().unwrap_or(0);
         conflicts_counter > 1
     }
 
