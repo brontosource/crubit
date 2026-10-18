@@ -589,6 +589,15 @@ pub fn generate_bindings_tokens(
                     return None;
                 };
 
+                // Without the AnyInvocable support header, there is no `AnyInvocableAbi` or
+                // `RawAnyInvocable` to target, and `absl::AnyInvocable` would not get any
+                // bindings.
+                if matches!(callable.backing_type, BackingType::AnyInvocable { .. })
+                    && generate_dyn_callable::CRUBIT_ANY_INVOCABLE_SUPPORT_HEADER.is_none()
+                {
+                    return None;
+                }
+
                 // The parameters shall be named `param_0`, `param_1`, etc.
                 // These names can be reused across different callables, so we reuse the same vec
                 // and just grow it when we need more Idents than it currently

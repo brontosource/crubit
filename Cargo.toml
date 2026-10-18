@@ -54,7 +54,10 @@ syn = { version = "2", features = [ "extra-traits" ] }
 ra-ap-rustc_lexer = "0.165.0"
 tempfile = "3"
 tracing = "0.1"
-unicode-ident = "1"
+# ra_ap_rustc_lexer requires unicode-ident and unicode-properties to agree on the
+# Unicode version. unicode-properties 0.1.4 is Unicode 17; unicode-ident >= 1.0.26
+# is Unicode 18. Unpin once unicode-properties catches up.
+unicode-ident = "=1.0.24"
 
 [workspace.package]
 
