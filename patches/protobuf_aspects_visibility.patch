@@ -1,9 +1,15 @@
 --- a/rust/bazel/aspects.bzl
 +++ b/rust/bazel/aspects.bzl
-@@ -26,5 +26,5 @@
+@@ -27,11 +27,7 @@
+     "encode_raw_string_as_crate_name",
  )
  
--visibility(["//rust/...", "//rs_bindings_from_cc/..."])
-+visibility(["//..."])
+-visibility([
+-    "//net/proto2/compiler/stubby/...",
+-    "//rust/...",
+-    "//third_party/crubit/rs_bindings_from_cc/...",
+-])
++visibility("public")
  
  CrateMappingInfo = provider(
+     doc = """Mapping from a crate name to the corresponding Rust library.
