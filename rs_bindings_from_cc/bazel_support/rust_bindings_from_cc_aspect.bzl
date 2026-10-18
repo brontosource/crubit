@@ -38,7 +38,7 @@ load(
     "generate_and_compile_bindings",
     "make_aliasable_dep_info",
 )
-load("@protobuf//rust:aspects.bzl", "RustProtoInfo", "rust_cc_proto_library_aspect")
+load("@protobuf//rust/bazel:aspects.bzl", "RustProtoInfo", "rust_cc_proto_library_aspect")
 load("//features:global_features.bzl", "SUPPORTED_FEATURES")
 load(
     "@protobuf//rust/bazel:encode_raw_string_as_crate_name.bzl",
