@@ -131,6 +131,29 @@ def _rustc_lib_env(ctx):
         "LD_LIBRARY_PATH": rustc_lib[0].dirname,
     }
 
+def _rustc_lib_process_wrapper_flags(ctx):
+    """Returns process_wrapper flags that set DYLD_LIBRARY_PATH to include rustc libraries.
+
+    This is the macOS counterpart of `_rustc_lib_env`. It can't be set through the action's `env`,
+    because the macOS sandbox (`sandbox-exec`) strips `DYLD_*` variables before process_wrapper
+    runs. Instead, it is passed via an env file that process_wrapper applies to the child process.
+
+    Args:
+      ctx: The rule context.
+
+    Returns:
+      A tuple of (list of process_wrapper flags, list of input files).
+    """
+    rust_toolchain = ctx.toolchains["@rules_rust//rust:toolchain_type"]
+    if rust_toolchain == None:
+        return [], []
+    rustc_lib = rust_toolchain.rustc_lib.to_list()
+    if len(rustc_lib) <= 0:
+        return [], []
+    env_file = ctx.actions.declare_file(ctx.label.name + "_cc_bindings_from_rs_rustc_lib.env")
+    ctx.actions.write(env_file, "DYLD_LIBRARY_PATH=%s\n" % rustc_lib[0].dirname)
+    return ["--env-file", env_file.path], [env_file]
+
 def _get_crate_dirname(crate):
     """A helper macro for getting the directory name of the current crate's output path.
 
@@ -304,10 +327,11 @@ def _generate_bindings(ctx, dep_bindings_infos, config, label, features, cli_fla
         )
     else:
         toolchain = toolchain.cc_bindings_from_rs_toolchain_info
+        rustc_lib_flags, rustc_lib_inputs = _rustc_lib_process_wrapper_flags(ctx)
         ctx.actions.run(
             outputs = outputs,
             inputs = depset(
-                [f for f in [ctx.file._rustfmt_cfg, self_rmeta] if f != None],
+                [f for f in [ctx.file._rustfmt_cfg, self_rmeta] if f != None] + rustc_lib_inputs,
                 transitive = [inputs],
             ),
             env = rustc_env | verbose_log_env | _rustc_lib_env(ctx),
@@ -321,7 +345,7 @@ def _generate_bindings(ctx, dep_bindings_infos, config, label, features, cli_fla
             # That said, if we passed arguments to crubit via environment variables or via flags that
             # can be interleaved with rustc flags in any order, and if we used toolchain.binary
             # as the tool_path for construct_arguments, then this could be `args.all` instead.
-            arguments = [args.process_wrapper_flags, "--", toolchain.binary.path, crubit_args, args.rustc_flags],
+            arguments = [args.process_wrapper_flags] + rustc_lib_flags + ["--", toolchain.binary.path, crubit_args, args.rustc_flags],
             toolchain = "//cc_bindings_from_rs/bazel_support:toolchain_type",
         )
 
@@ -365,14 +389,18 @@ def _make_cc_info_for_h_out_file(ctx, h_out_file, extra_cc_hdrs, extra_cc_srcs, 
         public_hdrs = [h_out_file] + extra_cc_hdrs,
         compilation_contexts = [cc_info.compilation_context],
     )
-    (linking_context, _) = cc_common.create_linking_context_from_compilation_outputs(
-        name = ctx.label.name,
-        actions = ctx.actions,
-        feature_configuration = feature_configuration,
-        cc_toolchain = cc_toolchain,
-        compilation_outputs = compilation_outputs,
-        linking_contexts = [cc_info.linking_context],
-    )
+    if compilation_outputs.objects or compilation_outputs.pic_objects:
+        (linking_context, _) = cc_common.create_linking_context_from_compilation_outputs(
+            name = ctx.label.name,
+            actions = ctx.actions,
+            feature_configuration = feature_configuration,
+            cc_toolchain = cc_toolchain,
+            compilation_outputs = compilation_outputs,
+            linking_contexts = [cc_info.linking_context],
+        )
+    else:
+        # Don't create an empty archive: macOS `libtool` fails when given no input files.
+        linking_context = cc_info.linking_context
 
     return CcInfo(
         compilation_context = compilation_context,
