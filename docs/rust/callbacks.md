@@ -31,7 +31,7 @@ cc_test(
     srcs = ["user_of_rust_api.cc"],
     deps = [
         ":rust_api_cc",
-        "//testing/base/public:gunit_main",
+        "@googletest//:gtest_main",
     ],
 )
 ```

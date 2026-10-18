@@ -9,16 +9,16 @@ load(
     "rust_library",
 )
 load(
-    "//common:multiplatform_testing.bzl",
-    "multiplatform_rust_test",
-)
-load("//common/bazel_support:external_binaries.bzl", "EXTERNAL_BINARIES")
-load(
     "//common:crubit_wrapper_macros_oss.bzl",
     "crubit_cc_test",
     "crubit_rust_binary",
     "crubit_rust_test",
 )
+load(
+    "//common:multiplatform_testing.bzl",
+    "multiplatform_rust_test",
+)
+load("//common/bazel_support:external_binaries.bzl", "EXTERNAL_BINARIES")
 load(
     "//rs_bindings_from_cc/bazel_support:deps_for_bindings.bzl",
     "deps_for_bindings",

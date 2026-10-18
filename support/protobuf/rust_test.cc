@@ -15,7 +15,7 @@
 namespace proto2 {
 namespace {
 
-using ::proto2::crubit_test::DummyMessage;
+using ::google::protobuf::crubit_test::DummyMessage;
 
 TEST(RustWrapperTest, SizeAndAlignment) {
   static_assert(sizeof(Rust<DummyMessage>) == sizeof(void*));
@@ -63,7 +63,7 @@ TEST(RustWrapperTest, OwnsAndAccessesObject) {
 TEST(RustWrapperTest, ProtoNamespaceAlias) {
   ::proto::Rust<DummyMessage> msg;
   static_assert(std::is_same_v<::proto::Rust<DummyMessage>,
-                               ::proto2::Rust<DummyMessage>>);
+                               ::google::protobuf::Rust<DummyMessage>>);
   EXPECT_NE(msg.get(), nullptr);
 }
 
