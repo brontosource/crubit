@@ -95,8 +95,11 @@ rs_bindings_from_cc_toolchain(
     binary = "//rs_bindings_from_cc:rs_bindings_from_cc",
     builtin_headers = [
         "@llvm-project//clang:builtin_headers_gen",
+        "@llvm-project//clang:builtin_headers_files",
+        "@llvm-project//compiler-rt:fuzzer_installed_hdrs",
+        "@llvm-project//compiler-rt:sanitizer_installed_hdrs",
     ],
-    stl_headers = ["@llvm_toolchain//:include"],
+    stl_headers = [],
 )
 
 rs_bindings_from_cc_toolchain(
