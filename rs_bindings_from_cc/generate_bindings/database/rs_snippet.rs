@@ -634,9 +634,7 @@ impl<'a> UniformReprTemplateType<'a> {
                 let element_type_tokens = element_type.to_token_stream(db);
                 // Use the custom name of the span crate, if configured (e.g. if
                 // label-encoded names are used).
-                let span_crate = db
-                    .ir()
-                    .crate_name(&BazelLabel::from("@abseil-cpp//absl/types:span"))
+                let span_crate = abseil_crate_name(db.ir(), "absl/types:span")
                     .map(|ident| quote! { ::#ident })
                     .unwrap_or_else(|| quote! { ::span });
 
@@ -3312,9 +3310,33 @@ impl<'a, 'ty> Iterator for RsTypeKindIter<'a, 'ty> {
 /// this function looks up the hint's `label` in the IR's `crate_names` to find the mangled
 /// crate name. If found, it replaces the matching prefix in `rust_path` with the mangled name.
 /// Otherwise, it returns the original `rust_path`.
+/// Returns the crate name of the bindings for an Abseil target (e.g. `absl/types:span`), if
+/// configured (e.g. if label-encoded names are used).
+pub fn abseil_crate_name(ir: &IR, target: &str) -> Option<Ident> {
+    // With Bzlmod, targets are identified by their canonical label, which is spelled
+    // `@@abseil-cpp+//...` (or `@@abseil-cpp~//...` before Bazel 8).
+    ["@abseil-cpp//", "@@abseil-cpp+//", "@@abseil-cpp~//"]
+        .into_iter()
+        .find_map(|repo| ir.crate_name(&BazelLabel::from(format!("{repo}{target}"))))
+}
+
 pub fn resolve_bridge_rust_name(rust_path: &str, hint: &Option<BazelLabel>, ir: &IR) -> String {
     let starts_with_colon2 = rust_path.starts_with("::");
     let path_without_colon = if starts_with_colon2 { &rust_path[2..] } else { rust_path };
+
+    // Hints are written as `//package:name`, but with Bzlmod, labels of targets in the main
+    // repository (as passed to Crubit) are spelled `@@//package:name`.
+    let canonical_hint = hint.as_ref().map(|label| {
+        let canonical = BazelLabel::from(format!("@@{}", label.as_str()));
+        if label.as_str().starts_with("//")
+            && (ir.crate_name(&canonical).is_some() || &canonical == ir.current_target())
+        {
+            canonical
+        } else {
+            label.clone()
+        }
+    });
+    let hint = &canonical_hint;
 
     if let Some(label) = hint {
         let parts: Vec<&str> = path_without_colon.split("::").collect();

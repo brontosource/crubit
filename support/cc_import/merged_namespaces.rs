@@ -142,6 +142,11 @@ fn to_use_stmts(
     let mut inner_tokens = TokenStream::new();
     for label_literal in namespace.labels.iter() {
         let span = Span::call_site();
+        // With Bzlmod, labels in the main repository are spelled `@@//package:name`.
+        let label_literal = label_literal
+            .strip_prefix("@@")
+            .filter(|l| l.starts_with("//"))
+            .unwrap_or(label_literal);
         let label = AbsoluteLabel::parse(label_literal, &span).expect("Couldn't parse label");
         // TODO(rosica): Use mangled name for the crate.
         let crate_name = &label.crate_name(&Mode::NoRenaming);

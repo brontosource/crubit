@@ -2768,8 +2768,9 @@ impl<'pb> Record<'pb> {
     pub fn is_string_view(&self) -> bool {
         match &self.template_specialization {
             Some(TemplateSpecialization { defining_target, kind, .. }) => {
-                let is_in_cc_std = *defining_target
-                    == BazelLabel::from("//support/cc_std:cc_std")
+                // With Bzlmod, the label may be prefixed with a repository name, e.g.
+                // `@@//support/cc_std:cc_std` or `@@rules_crubit+//support/cc_std:cc_std`.
+                let is_in_cc_std = defining_target.as_str().ends_with("//support/cc_std:cc_std")
                     || *defining_target
                         == BazelLabel::from(
                             "//third_party/crosstool/rust/stable/crubit/support/cc_std:cc_std",

@@ -8,8 +8,9 @@ use crubit_abi_type::{
     CrubitAbiTypeToRustExprTokens, CrubitAbiTypeToRustTokens,
 };
 use database::db::BindingsGenerator;
-use database::rs_snippet::{BackingType, Callable, FnTrait, PassingConvention, RsTypeKind};
-use ir::BazelLabel;
+use database::rs_snippet::{
+    abseil_crate_name, BackingType, Callable, FnTrait, PassingConvention, RsTypeKind,
+};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
@@ -28,9 +29,7 @@ pub fn callable_crubit_abi_type<'a>(
     }
     let dyn_fn_spelling = callable.dyn_fn_spelling(db);
 
-    let any_invocable_crate = db
-        .ir()
-        .crate_name(&BazelLabel::from("@abseil-cpp//absl/functional:any_invocable"))
+    let any_invocable_crate = abseil_crate_name(db.ir(), "absl/functional:any_invocable")
         .map(|ident| quote! { ::#ident })
         .unwrap_or_else(|| quote! { ::any_invocable });
 
@@ -270,9 +269,7 @@ fn generate_make_cpp_invoker_tokens<'a>(
     callable: &Callable<'a>,
     invoke_any_invocable_ident: &Ident,
 ) -> Result<TokenStream> {
-    let any_invocable_crate = db
-        .ir()
-        .crate_name(&BazelLabel::from("@abseil-cpp//absl/functional:any_invocable"))
+    let any_invocable_crate = abseil_crate_name(db.ir(), "absl/functional:any_invocable")
         .map(|ident| quote! { ::#ident })
         .unwrap_or_else(|| quote! { ::any_invocable });
 
