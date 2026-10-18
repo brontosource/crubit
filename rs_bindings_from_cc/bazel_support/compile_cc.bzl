@@ -77,13 +77,9 @@ def compile_cc(
         disallow_dynamic_library = "apple" in cc_toolchain.target_gnu_system_name,
     )
 
-    debug_context = cc_common.merge_debug_context([
-        cc_info._debug_context if hasattr(cc_info, "_debug_context") else cc_info.debug_context(),
-        cc_common.create_debug_context(compilation_outputs),
-    ])
-
+    # The debug context (used for debug fission) is omitted: `cc_common.create_debug_context` and
+    # `cc_common.merge_debug_context` are private rules_cc APIs outside of Google.
     return CcInfo(
         compilation_context = compilation_context,
         linking_context = linking_context,
-        debug_context = debug_context,
     )
