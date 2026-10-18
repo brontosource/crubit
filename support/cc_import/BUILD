@@ -23,6 +23,32 @@ rust_proc_macro(
     ],
 )
 
+# Vendored from rules_rust, which no longer provides it. See import_internal.rs.
+rust_library(
+    name = "import_internal",
+    srcs = ["import_internal.rs"],
+    compatible_with = ["//buildenv/target:non_prod"],
+    edition = "2018",
+    deps = [
+        ":label",
+        "@crate_index//:aho-corasick",
+        "@crate_index//:proc-macro2",
+        "@crate_index//:quote",
+        "@crate_index//:syn",
+    ],
+)
+
+# Vendored from rules_rust for `import_internal`. See label/label.rs.
+rust_library(
+    name = "label",
+    srcs = [
+        "label/label.rs",
+        "label/label_error.rs",
+    ],
+    compatible_with = ["//buildenv/target:non_prod"],
+    edition = "2018",
+)
+
 rust_library(
     name = "cc_import_internal",
     srcs = [
@@ -36,7 +62,7 @@ rust_library(
         "@crate_index//:quote",  # v1
         "@crate_index//:serde_json",  # v1
         "@crate_index//:syn",  # v1
-        "@rules_rust//util/import:import_internal",
+        ":import_internal",
     ],
 )
 
@@ -51,7 +77,7 @@ rust_library(
         "@crate_index//:serde",  # v1
         "@crate_index//:serde_json",  # v1
         "@crate_index//:syn",  # v1
-        "@rules_rust//util/import:import_internal",
+        ":import_internal",
     ],
 )
 
