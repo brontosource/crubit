@@ -11,21 +11,10 @@ load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 def crubit_rust_test(**kwargs):
-    """Wrapper around `rust_test` that provides the Rust stdlib files and `LD_LIBRARY_PATH`.
-
-    Args:
-        **kwargs: Arguments forwarded to `rust_test`.
-    """
-    data = list(kwargs.pop("data", default = []))
-    std_libs = "@rules_rust//rust/toolchain:current_rust_stdlib_files"
-    if std_libs not in data:
-        data.append(std_libs)
-    env = dict(kwargs.pop("env", default = {}))
-    env.setdefault(
-        "LD_LIBRARY_PATH",
-        "../+crubit_toolchains+rust_linux_x86_64__x86_64-unknown-linux-gnu__nightly_tools/rust_toolchain/lib/rustlib/x86_64-unknown-linux-gnu/lib",
-    )
-    rust_test(data = data, env = env, **kwargs)
+    # Ignore the `crubit_dep` argument, as the OSS version of
+    # `crubit_rust_test` never inherits a dep on Crubit.
+    kwargs.pop("crubit_dep", default = False)
+    rust_test(**kwargs)
 
 def crubit_rust_binary(**kwargs):
     # Ignore the `crubit_dep` argument, as the OSS version of

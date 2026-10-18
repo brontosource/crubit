@@ -110,6 +110,7 @@ cc_library(
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/log:initialize",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
@@ -581,7 +582,8 @@ rust_library(
     ],
     deps = [
         ":ir",
-        ":proto_from_cc",
+        ":ir_rust_proto",
+        ":proto_from_cc",  # Defines `proto_from_cc_dependency`, called via FFI.
         "//common:arc_anyhow",
         "//common:crubit_feature",
         "//common:ffi_types",
@@ -677,6 +679,7 @@ multiplatform_rust_test(
     deps = [
         ":ir",
         ":ir_matchers",
+        ":ir_rust_proto",
         ":ir_testing",
         "//common:arc_anyhow",
         "//common:multiplatform_testing",
@@ -790,6 +793,7 @@ crubit_rust_test(
         "not_run:mac",
     ],
     deps = [
+        ":ir_rust_proto",
         "//common:arc_anyhow",
         "//common:multiplatform_testing",
         "@crate_index//:googletest",

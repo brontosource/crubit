@@ -8,6 +8,7 @@ crubit_rust_test(
         "__cc_template_instantiations_rs_api.rs",
         "cc_template_integration_test.rs",
     ],
+    # Read by the `cc_template!` proc macro at compile time.
     compile_data = ["__cc_template_instantiations.json"],
     proc_macro_deps = ["//support/cc_template:cc_template"],
     rustc_env = {
