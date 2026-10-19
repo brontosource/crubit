@@ -20,7 +20,7 @@
 #include "nullability/inference/usr_cache.h"
 #include "nullability/loc_filter.h"
 #include "nullability/type_nullability.h"
-#include "clang-tidy/utils/LexerUtils.h"
+#include "utils/LexerUtils.h"  // from @llvm-project//clang-tools-extra/clang-tidy:utils
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/ExprCXX.h"

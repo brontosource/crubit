@@ -1,6 +1,6 @@
 # Inference of nullability annotations
 
-load("@bazel_tools//tools/build_defs/cc:cc_embed_data.bzl", "cc_embed_data")
+load("//bazel:cc_embed_data.bzl", "cc_embed_data")
 load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
@@ -181,7 +181,7 @@ cc_library(
         "@llvm-project//clang:lex",
         "@llvm-project//clang:transformer",
         "@llvm-project//clang:unified_symbol_resolution",
-        "@llvm-project//clang-tools-extra/clang-tidy:tidy_framework",
+        "@llvm-project//clang-tools-extra/clang-tidy:utils",
         "@llvm-project//llvm:Support",
     ],
 )
