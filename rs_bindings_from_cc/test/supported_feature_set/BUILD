@@ -12,7 +12,6 @@ crubit_test_cc_library(
         "//features:template_instantiation",
     ],
     copts = ["-Wno-nullability-completeness"],
-    deps = ["@abseil-cpp//absl/base:core_headers"],
 )
 
 crubit_test_cc_library(
