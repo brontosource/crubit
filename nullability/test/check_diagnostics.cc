@@ -27,7 +27,7 @@
 #include "clang/Testing/CommandLineArgs.h"
 #include "clang/Testing/TestAST.h"
 #include "clang/Tooling/Tooling.h"
-#include "third_party/llvm/llvm-project/clang/unittests/Analysis/FlowSensitive/TestingSupport.h"
+#include "clang/unittests/Analysis/FlowSensitive/TestingSupport.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
