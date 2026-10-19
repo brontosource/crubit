@@ -8,7 +8,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//cc_bindings_from_rs/bazel_support:providers.bzl", "CcBindingsFromRustInfo")
 
 def _crubit_doxygen_impl(ctx):
-    doxygen_bin = ctx.executable._doxygen
+    doxygen_bin = ctx.file._doxygen
     doxyfile_template = ctx.file.doxyfile
 
     headers_depset = []
@@ -83,8 +83,7 @@ crubit_doxygen = rule(
             mandatory = True,
         ),
         "_doxygen": attr.label(
-            default = "@doxygen//:doxygen",
-            executable = True,
+            default = "@doxygen//:executable",
             allow_single_file = True,
             cfg = "exec",
         ),
