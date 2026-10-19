@@ -11,7 +11,6 @@ load(
     "//cc_bindings_from_rs/test/golden:golden_test.bzl",
     "golden_test",
 )
-load("//common:crubit_wrapper_macros_oss.bzl", "crubit_cc_test")
 
 package(default_applicable_licenses = ["//:license"])
 
@@ -53,18 +52,21 @@ golden_test(
     rust_library = "async_fn",
 )
 
-crubit_cc_test(
-    name = "async_fn_test",
-    srcs = ["async_fn_test.cc"],
-    platforms = [
-        "android",
-        "ios",
-    ],
-    deps = [
-        ":async_fn_cc_api",
-        "//support:movable",
-        "//support/internal:bindings_support",
-        "//support/rs_std:waker",
-        "@googletest//:gtest_main",
-    ],
-)
+# TODO: async_fn_test.cc was replaced upstream by async_fn_co_test.cc, which
+# depends on the Google-internal util/c9/testing/co_test.h.
+#
+# crubit_cc_test(
+#     name = "async_fn_test",
+#     srcs = ["async_fn_test.cc"],
+#     platforms = [
+#         "android",
+#         "ios",
+#     ],
+#     deps = [
+#         ":async_fn_cc_api",
+#         "//support:movable",
+#         "//support/internal:bindings_support",
+#         "//support/rs_std:waker",
+#         "@googletest//:gtest_main",
+#     ],
+# )
