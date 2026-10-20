@@ -16,4 +16,8 @@ int Sum(Point p);
 inline int Always() { return 1; }
 #endif
 
+#ifdef FIXTURE_CXX
+inline int CxxOnly() { return 2; }
+#endif
+
 #endif  // CRUBIT_CMAKE_TEST_BASIC_BASIC_H_

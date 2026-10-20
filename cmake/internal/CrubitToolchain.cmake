@@ -24,6 +24,16 @@ function(_crubit_init_toolchain)
   endif()
   set_property(GLOBAL PROPERTY _CRUBIT_TOOLCHAIN_INITIALIZED TRUE)
 
+  if(CMAKE_VERSION VERSION_LESS 3.27)
+    message(FATAL_ERROR "Crubit requires CMake 3.27 or newer.")
+  endif()
+  get_property(multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+  if(multi_config)
+    message(FATAL_ERROR
+      "Crubit supports only single-configuration generators (not "
+      "${CMAKE_GENERATOR}); set CMAKE_BUILD_TYPE instead.")
+  endif()
+
   if(NOT CRUBIT_RS_BINDINGS_FROM_CC)
     find_program(_crubit_tool NAMES rs_bindings_from_cc)
     if(_crubit_tool)

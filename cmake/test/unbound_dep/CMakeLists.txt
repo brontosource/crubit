@@ -4,7 +4,7 @@
 
 # A dependency without bindings does not break generation: declarations that
 # use its types are skipped.
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.27)
 project(unbound_dep LANGUAGES CXX)
 include(${CRUBIT_SOURCE_DIR}/cmake/test/fixture_preamble.cmake)
 

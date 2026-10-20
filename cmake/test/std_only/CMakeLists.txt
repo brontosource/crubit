@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 # Rust code can use the C++ standard library bindings (cc_std).
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.27)
 project(std_only LANGUAGES CXX)
 include(${CRUBIT_SOURCE_DIR}/cmake/test/fixture_preamble.cmake)
 

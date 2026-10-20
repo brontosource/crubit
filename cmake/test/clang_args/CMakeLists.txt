@@ -4,7 +4,7 @@
 
 # _crubit_clang_args() turns a target's usage requirements into clang args,
 # evaluating generator expressions.
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.27)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
 endif()

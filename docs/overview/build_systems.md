@@ -141,7 +141,8 @@ it like on any other crate.
 
 ### Requirements
 
-*   CMake 3.23 or newer.
+*   CMake 3.27 or newer, with a single-configuration generator (such as
+    Makefiles or Ninja; not Ninja Multi-Config, Xcode or Visual Studio).
 *   Clang and libc++. All C++ code, including dependencies, must be built with
     `-stdlib=libc++` (the default on macOS). libstdc++ is not supported yet.
 *   A nightly Rust toolchain. (The generated code uses unstable features;
@@ -191,9 +192,9 @@ cc_std = "0.0.0"  # Rust bindings for the C++ standard library.
     `FEATURES` are the [Crubit features](crubit.rs/overview/status) to enable
     (default: `supported`). It also creates `crubit::<crate>`, the C++ half of
     the bindings.
-*   `crubit_link_rust_bindings(<rust_target> <crate>...)` makes the crates, and
-    `cc_std`, available to a Rust target imported with Corrosion, and links
-    their C++ halves into it.
+*   `crubit_link_rust_bindings(<rust_target> <crate>...)` makes the crates, the
+    bindings crates of their dependencies, and `cc_std` available to a Rust
+    target imported with Corrosion, and links their C++ halves into it.
 
 If a C++ library uses types of a dependency, call `crubit_rust_bindings` for
 that dependency too; the generated crates then share those types. Declarations
@@ -206,6 +207,11 @@ skipped, with an explanation in the generated `.rs` file under
 In addition to the general [limitations](crubit.rs/overview/limits.md):
 
 *   Only libc++ is supported.
+*   Only single-configuration generators are supported.
+*   Headers are attributed to targets by the path Clang finds them under.
+    Include directories are normalized, but headers reached through symlinks,
+    or included by relative paths such as `#include "../a/a.h"`, may not be
+    recognized; declarations using their types are then skipped.
 *   Interop with the `cxx` crate (`impl_cxx_extern_type`) is disabled.
 *   Unlike the Bazel build, bindings crates are not compiled with
     `-Zdefault-visibility=hidden`, since Cargo cannot set per-crate rustflags.

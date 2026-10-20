@@ -4,7 +4,7 @@
 
 # Calling an existing C++ library (which uses the C++ standard library and
 # Abseil) from Rust, with Crubit and CMake. See README.md.
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.27)
 project(cmake_cc_to_rust LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)

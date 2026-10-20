@@ -57,8 +57,10 @@ function(_crubit_clang_args out_var tgt)
   _crubit_system_include_args(system_args)
   list(APPEND args ${system_args})
 
-  # Each property expands to zero or more lines.
-  set(includes "$<TARGET_PROPERTY:${tgt},INCLUDE_DIRECTORIES>")
+  # Each property expands to zero or more lines. Include directories are
+  # normalized: rs_bindings_from_cc attributes headers to targets by the path
+  # Clang finds them under.
+  set(includes "$<PATH:NORMAL_PATH,$<TARGET_PROPERTY:${tgt},INCLUDE_DIRECTORIES>>")
   set(defines "$<TARGET_PROPERTY:${tgt},COMPILE_DEFINITIONS>")
   set(options "$<TARGET_PROPERTY:${tgt},COMPILE_OPTIONS>")
   list(APPEND args

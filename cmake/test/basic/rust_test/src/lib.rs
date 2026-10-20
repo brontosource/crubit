@@ -6,5 +6,6 @@
 pub extern "C" fn rust_test_main() -> i32 {
     assert_eq!(basic_rs::Sum(basic_rs::Point { x: 2, y: 3 }), 5);
     assert_eq!(basic_rs::Always(), 1);
+    assert_eq!(basic_rs::CxxOnly(), 2);
     0
 }

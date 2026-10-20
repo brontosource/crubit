@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 # Including Crubit provides its API.
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.27)
 project(configure_ok LANGUAGES CXX)
 include(${CRUBIT_SOURCE_DIR}/cmake/test/fixture_preamble.cmake)
 
