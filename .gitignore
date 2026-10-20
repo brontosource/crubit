@@ -4,3 +4,4 @@
 bazelisk
 MODULE.bazel.lock
 /build-cmake-test
+/cmake/test/*/rust_test/Cargo.lock
