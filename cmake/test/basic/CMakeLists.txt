@@ -9,12 +9,15 @@ cmake_minimum_required(VERSION 3.22)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
 endif()
-project(basic LANGUAGES CXX)
+# C is enabled too: language-specific usage requirements must still work.
+project(basic LANGUAGES C CXX)
 include(${CRUBIT_SOURCE_DIR}/cmake/test/fixture_preamble.cmake)
 
 add_library(basic STATIC basic.cc)
 target_include_directories(basic PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>)
-target_compile_definitions(basic PUBLIC $<$<CONFIG:Debug>:FIXTURE_ALWAYS>)
+target_compile_definitions(basic PUBLIC
+  $<$<CONFIG:Debug>:FIXTURE_ALWAYS>
+  $<$<COMPILE_LANGUAGE:CXX>:FIXTURE_CXX>)
 crubit_rust_bindings(basic_rs CC_TARGET basic HEADERS inc/basic.h)
 
 corrosion_import_crate(MANIFEST_PATH rust_test/Cargo.toml)
@@ -28,5 +31,6 @@ add_test(NAME main COMMAND main)
 add_test(NAME regenerate COMMAND ${CMAKE_COMMAND}
   -DBINARY_DIR=${CMAKE_BINARY_DIR}
   -DHEADER=${CMAKE_CURRENT_SOURCE_DIR}/inc/basic.h
+  -DCRATE=basic_rs
   -DGENERATOR=${CMAKE_GENERATOR}
-  -P ${CMAKE_CURRENT_SOURCE_DIR}/check_regenerate.cmake)
+  -P ${CRUBIT_SOURCE_DIR}/cmake/test/check_regenerate.cmake)

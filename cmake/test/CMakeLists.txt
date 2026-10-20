@@ -45,13 +45,17 @@ foreach(var CMAKE_CXX_COMPILER CMAKE_CXX_FLAGS CMAKE_BUILD_TYPE)
   endif()
 endforeach()
 
-# crubit_add_fixture(<name> [FAIL_REGEX <regex>] [LINUX_ONLY] [SOURCE_DIR <dir>])
+# crubit_add_fixture(<name> [FAIL_REGEX <regex>] [LINUX_ONLY] [SOURCE_DIR <dir>]
+#                    [GENERATOR <generator>])
 #
 # Registers the fixture project in `<SOURCE_DIR>` (default: `./<name>`) as a
-# test. With FAIL_REGEX, the test passes iff the output matches the regex
+# test, built with GENERATOR (default: this project's generator). With FAIL_REGEX, the test passes iff the output matches the regex
 # (used for fixtures that must fail to configure).
 function(crubit_add_fixture name)
-  cmake_parse_arguments(PARSE_ARGV 1 ARG "LINUX_ONLY" "FAIL_REGEX;SOURCE_DIR" "")
+  cmake_parse_arguments(PARSE_ARGV 1 ARG "LINUX_ONLY" "FAIL_REGEX;SOURCE_DIR;GENERATOR" "")
+  if(NOT ARG_GENERATOR)
+    set(ARG_GENERATOR "${CMAKE_GENERATOR}")
+  endif()
   if(ARG_LINUX_ONLY AND NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     return()
   endif()
@@ -62,7 +66,7 @@ function(crubit_add_fixture name)
     NAME ${name}
     COMMAND ${CMAKE_CTEST_COMMAND}
       --build-and-test "${ARG_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/${name}"
-      --build-generator "${CMAKE_GENERATOR}"
+      --build-generator "${ARG_GENERATOR}"
       --build-options ${_crubit_fixture_options}
       --test-command ${CMAKE_CTEST_COMMAND} --output-on-failure
   )
@@ -72,6 +76,8 @@ function(crubit_add_fixture name)
 endfunction()
 
 crubit_add_fixture(configure_ok)
+crubit_add_fixture(multi_config GENERATOR "Ninja Multi-Config"
+  FAIL_REGEX "Crubit supports only single-configuration generators")
 crubit_add_fixture(not_libcxx LINUX_ONLY FAIL_REGEX "Crubit requires libc\\+\\+")
 crubit_add_fixture(clang_args)
 crubit_add_fixture(std_only)

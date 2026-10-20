@@ -61,7 +61,8 @@ function(_crubit_clang_args out_var tgt)
   _crubit_system_include_args(system_args)
   list(APPEND args ${system_args})
 
-  # Each property expands to zero or more lines.
+  # Each property expands to zero or more lines. (_crubit_generate normalizes
+  # the include directories.)
   set(includes "$<TARGET_PROPERTY:${tgt},INCLUDE_DIRECTORIES>")
   set(defines "$<TARGET_PROPERTY:${tgt},COMPILE_DEFINITIONS>")
   set(options "$<TARGET_PROPERTY:${tgt},COMPILE_OPTIONS>")

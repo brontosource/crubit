@@ -41,7 +41,8 @@ endfunction()
 #   TARGET_ARGS_JSON <json>...     One `--target_to_arg` entry per target.
 #   [EXTRA_RS_SRCS <file[=ns]>...] Extra Rust sources for the crate.
 #   [LINK <target>...]             C++ targets the thunks link against.
-#   [DEP_CRATES <crate>...])       Other bindings crates this crate uses.
+#   [DEP_CRATES <crate>...]        Other bindings crates this crate uses.
+#   [DEPENDS <file>...])           More inputs whose changes regenerate.
 #
 # Generates bindings with rs_bindings_from_cc and creates:
 #   - target `crubit_generate_<name>`, which runs the generator;
@@ -51,13 +52,18 @@ endfunction()
 function(_crubit_generate)
   cmake_parse_arguments(PARSE_ARGV 0 ARG ""
     "CRATE;LABEL"
-    "CLANG_ARGS;PUBLIC_HEADERS;TARGET_ARGS_JSON;EXTRA_RS_SRCS;LINK;DEP_CRATES")
+    "CLANG_ARGS;PUBLIC_HEADERS;TARGET_ARGS_JSON;EXTRA_RS_SRCS;LINK;DEP_CRATES;DEPENDS")
   set(crate "${ARG_CRATE}")
   set(dir "${CRUBIT_CRATES_DIR}/${crate}")
   set(rs_out "${dir}/${crate}_rust_api.rs")
   set(cc_out "${dir}/${crate}_rust_api_impl.cc")
   set(ns_out "${dir}/${crate}_namespaces.json")
-  set(rsp "${dir}/${crate}.rsp")
+  # `file(GENERATE)` evaluates content once per enabled language, so usage
+  # requirements like `$<COMPILE_LANGUAGE:CXX>` need a file per language. The
+  # C++ one becomes the param file once its include directories are normalized.
+  set(rsp_template "${dir}/${crate}-$<COMPILE_LANGUAGE>.rsp.in")
+  set(rsp_in "${dir}/${crate}-CXX.rsp.in")
+  set(rsp "${dir}/${crate}-CXX.rsp")
 
   # The param file: one argument per line.
   set(lines
@@ -87,13 +93,22 @@ function(_crubit_generate)
     "-resource-dir\n${CRUBIT_CLANG_RESOURCE_DIR}\n"
     "-I${crubit_dir}\n"
     "-include\n$<JOIN:${ARG_PUBLIC_HEADERS},\n-include\n>\n")
-  file(GENERATE OUTPUT "${rsp}" CONTENT "${content}")
+  file(GENERATE OUTPUT "${rsp_template}" CONTENT "${content}")
+  # rs_bindings_from_cc attributes headers to targets by the path Clang finds
+  # them under, so include directories must be normalized like the headers.
+  # (`$<PATH:NORMAL_PATH>` could do this when generating, but needs CMake 3.27.)
+  set(normalize "${crubit_dir}/cmake/internal/CrubitNormalizeIncludes.cmake")
+  add_custom_command(
+    OUTPUT "${rsp}"
+    COMMAND "${CMAKE_COMMAND}" "-DIN=${rsp_in}" "-DOUT=${rsp}" -P "${normalize}"
+    DEPENDS "${rsp_in}" "${normalize}"
+    VERBATIM)
 
   _crubit_rs_bindings_from_cc(tool)
   add_custom_command(
     OUTPUT "${rs_out}" "${cc_out}" "${ns_out}"
     COMMAND "${tool}" --stderrthreshold=2 "@${rsp}"
-    DEPENDS "${tool}" "${rsp}" ${ARG_PUBLIC_HEADERS}
+    DEPENDS "${tool}" "${rsp}" ${ARG_PUBLIC_HEADERS} ${ARG_DEPENDS}
     COMMENT "Generating Rust bindings for C++: ${crate}"
     VERBATIM)
   add_custom_target(crubit_generate_${crate} DEPENDS "${rs_out}" "${cc_out}")
@@ -205,7 +220,8 @@ function(_crubit_finalize tgt)
   # Dependencies with bindings own their headers. Headers of other
   # dependencies belong to no Crubit target, so declarations using them are
   # skipped.
-  set(dep_crates cc_std)
+  set(dep_crates "")
+  set(dep_headers "")
   _crubit_transitive_deps(deps ${tgt})
   foreach(dep IN LISTS deps)
     get_target_property(dep_crate ${dep} CRUBIT_CRATE_NAME)
@@ -213,6 +229,8 @@ function(_crubit_finalize tgt)
       _crubit_target_args_json(dep_args ${dep})
       list(APPEND target_args "${dep_args}")
       list(APPEND dep_crates "${dep_crate}")
+      _crubit_public_headers(headers_of_dep ${dep})
+      list(APPEND dep_headers ${headers_of_dep})
     endif()
   endforeach()
 
@@ -224,5 +242,12 @@ function(_crubit_finalize tgt)
     PUBLIC_HEADERS ${headers}
     TARGET_ARGS_JSON ${target_args}
     LINK ${tgt} crubit::cc_std
-    DEP_CRATES ${dep_crates})
+    DEP_CRATES cc_std ${dep_crates}
+    DEPENDS ${dep_headers})
+
+  # The crate's Rust dependencies need their bindings, and their thunks.
+  foreach(dep_crate IN LISTS dep_crates)
+    add_dependencies(crubit_generate_${crate} crubit_generate_${dep_crate})
+    target_link_libraries(crubit_impl_${crate} PUBLIC crubit::${dep_crate})
+  endforeach()
 endfunction()
