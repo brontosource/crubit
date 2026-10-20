@@ -15,15 +15,18 @@ endif()
 
 include(FetchContent)
 
-FetchContent_Declare(
-  absl
-  GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
-  GIT_TAG 20260526.0
-  GIT_SHALLOW TRUE
-  FIND_PACKAGE_ARGS NAMES absl
-)
+# Reuse the parent project's Abseil, if it has one.
+if(NOT TARGET absl::base)
+  FetchContent_Declare(
+    absl
+    GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+    GIT_TAG 20260526.0
+    GIT_SHALLOW TRUE
+    FIND_PACKAGE_ARGS NAMES absl
+  )
 
-FetchContent_MakeAvailable(absl)
+  FetchContent_MakeAvailable(absl)
+endif()
 
 find_package(Protobuf QUIET)
 if(NOT Protobuf_FOUND)
@@ -34,7 +37,7 @@ if(NOT Protobuf_FOUND)
   FetchContent_Declare(
     Protobuf
     GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-    GIT_TAG main
+    GIT_TAG v36.1
     FIND_PACKAGE_ARGS NAMES Protobuf
   )
   FetchContent_GetProperties(Protobuf)
@@ -67,3 +70,5 @@ target_include_directories(crubit_support INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(crubit_support INTERFACE
   $<$<COMPILE_LANG_AND_ID:CXX,Clang,AppleClang>:-Wno-nullability-completeness>
 )
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Crubit.cmake)
