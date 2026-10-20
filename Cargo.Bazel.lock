@@ -1,5 +1,5 @@
 {
-  "checksum": "b87db0e1817ff1f05289a114d8581e073f0dba32de7a94645535d505e63bfd52",
+  "checksum": "93ba767dfd5456144a128869fdcb6d36f552fa9b60e402d8f1844017f3cd5c09",
   "crates": {
     "aho-corasick 1.1.5": {
       "name": "aho-corasick",
@@ -2845,6 +2845,46 @@
       ],
       "license_file": "LICENSE-APACHE"
     },
+    "cref 0.1.0": {
+      "name": "cref",
+      "version": "0.1.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cref",
+            "crate_root": "../../cref.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cref",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps_dev": {
+          "common": [
+            {
+              "id": "googletest 0.14.3",
+              "target": "googletest"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.1.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../LICENSE"
+    },
     "crubit_abi_type 0.0.0": {
       "name": "crubit_abi_type",
       "version": "0.0.0",
@@ -3166,6 +3206,101 @@
       "license": null,
       "license_ids": [],
       "license_file": "../../LICENSE"
+    },
+    "ctor 0.1.0": {
+      "name": "ctor",
+      "version": "0.1.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "ctor",
+            "crate_root": "../../ctor.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "ctor",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": {
+          "common": [
+            "default",
+            "same_abi"
+          ],
+          "selects": {}
+        },
+        "deps_dev": {
+          "common": [
+            {
+              "id": "googletest 0.14.3",
+              "target": "googletest"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.1.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../LICENSE"
+    },
+    "ctor_proc_macros 0.1.0": {
+      "name": "ctor_proc_macros",
+      "version": "0.1.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "ctor_proc_macros",
+            "crate_root": "../../ctor_proc_macros.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "ctor_proc_macros",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.1.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../LICENSE"
     },
     "cxx 1.0.205": {
       "name": "cxx",
@@ -3490,6 +3625,46 @@
       "license": null,
       "license_ids": [],
       "license_file": null
+    },
+    "dyn_callable_rs 0.1.0": {
+      "name": "dyn_callable_rs",
+      "version": "0.1.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dyn_callable_rs",
+            "crate_root": "../../rs_std/dyn_callable.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "dyn_callable_rs",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps_dev": {
+          "common": [
+            {
+              "id": "googletest 0.14.3",
+              "target": "googletest"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.1.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../LICENSE"
     },
     "dyn_format 0.0.0": {
       "name": "dyn_format",
@@ -4155,6 +4330,101 @@
         "Zlib"
       ],
       "license_file": "LICENSE"
+    },
+    "forward_declare 0.1.0": {
+      "name": "forward_declare",
+      "version": "0.1.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "forward_declare",
+            "crate_root": "../../forward_declare.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "forward_declare",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": {
+          "common": [
+            "default",
+            "unstable"
+          ],
+          "selects": {}
+        },
+        "deps_dev": {
+          "common": [
+            {
+              "id": "googletest 0.14.3",
+              "target": "googletest"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.1.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../LICENSE"
+    },
+    "forward_declare_proc_macros 0.1.0": {
+      "name": "forward_declare_proc_macros",
+      "version": "0.1.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "forward_declare_proc_macros",
+            "crate_root": "../../forward_declare_proc_macros.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "forward_declare_proc_macros",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.1.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../LICENSE"
     },
     "futures 0.3.34": {
       "name": "futures",
@@ -5280,6 +5550,77 @@
       ],
       "license_file": "LICENSE-APACHE"
     },
+    "inline_cpp_macro 0.1.0": {
+      "name": "inline_cpp_macro",
+      "version": "0.1.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "inline_cpp_macro",
+            "crate_root": "../../extract_cpp_from_rust/inline_cpp_macro.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "inline_cpp_macro",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.1.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../LICENSE"
+    },
+    "inline_cpp_utils 0.1.0": {
+      "name": "inline_cpp_utils",
+      "version": "0.1.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "inline_cpp_utils",
+            "crate_root": "../../extract_cpp_from_rust/inline_cpp_utils.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "inline_cpp_utils",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "edition": "2024",
+        "version": "0.1.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../LICENSE"
+    },
     "is_terminal_polyfill 1.70.2": {
       "name": "is_terminal_polyfill",
       "version": "1.70.2",
@@ -6167,6 +6508,46 @@
       ],
       "license_file": "LICENSE-APACHE"
     },
+    "lossy_formatter 0.1.0": {
+      "name": "lossy_formatter",
+      "version": "0.1.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "lossy_formatter",
+            "crate_root": "../../rs_std/lossy_formatter.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "lossy_formatter",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps_dev": {
+          "common": [
+            {
+              "id": "googletest 0.14.3",
+              "target": "googletest"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.1.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../LICENSE"
+    },
     "maplit 1.0.2": {
       "name": "maplit",
       "version": "1.0.2",
@@ -6600,6 +6981,46 @@
       ],
       "license_file": "LICENSE-APACHE"
     },
+    "oops 0.1.0": {
+      "name": "oops",
+      "version": "0.1.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "oops",
+            "crate_root": "../../oops.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "oops",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps_dev": {
+          "common": [
+            {
+              "id": "googletest 0.14.3",
+              "target": "googletest"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.1.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../LICENSE"
+    },
     "open-enum 0.5.3": {
       "name": "open-enum",
       "version": "0.5.3",
@@ -6701,6 +7122,46 @@
         "Apache-2.0"
       ],
       "license_file": "LICENSE"
+    },
+    "operator 0.1.0": {
+      "name": "operator",
+      "version": "0.1.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "operator",
+            "crate_root": "../../operator.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "operator",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps_dev": {
+          "common": [
+            {
+              "id": "googletest 0.14.3",
+              "target": "googletest"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.1.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../LICENSE"
     },
     "paste-complete 1.0.15": {
       "name": "paste-complete",
@@ -13570,6 +14031,7 @@
     "cc_bindings_from_rs_toposort 0.0.0": "cargo/cc_bindings_from_rs/toposort",
     "cc_ffi_types_sys 0.0.0": "cargo/common/cc_ffi_types_sys",
     "code_gen_utils 0.0.0": "cargo/common/code_gen_utils",
+    "cref 0.1.0": "support/cargo/cref",
     "crubit_abi_type 0.0.0": "cargo/common/crubit_abi_type",
     "crubit_annotate 0.1.0": "support/crubit_annotate",
     "crubit_bridge_rust 0.1.0": "support/crubit_bridge_rust",
@@ -13577,7 +14039,10 @@
     "crubit_feature 0.0.0": "cargo/common/crubit_feature",
     "crubit_hash_rust 0.1.0": "support/crubit_hash_rust",
     "crubit_support 0.1.0": "support/crubit_support",
+    "ctor 0.1.0": "support/cargo/ctor",
+    "ctor_proc_macros 0.1.0": "support/cargo/ctor_proc_macros",
     "direct-cargo-bazel-deps 0.0.1": "",
+    "dyn_callable_rs 0.1.0": "support/cargo/dyn_callable_rs",
     "dyn_format 0.0.0": "cargo/common/dyn_format",
     "error_report 0.0.0": "cargo/common/error_report",
     "errors 0.0.0": "cargo/common/errors",
@@ -13585,13 +14050,20 @@
     "ffi_11 0.0.3": "support/ffi_11",
     "ffi_types 0.0.0": "cargo/common/ffi_types",
     "file_io_sys 0.0.0": "cargo/common/file_io_sys",
+    "forward_declare 0.1.0": "support/cargo/forward_declare",
+    "forward_declare_proc_macros 0.1.0": "support/cargo/forward_declare_proc_macros",
+    "inline_cpp_macro 0.1.0": "support/cargo/inline_cpp_macro",
+    "inline_cpp_utils 0.1.0": "support/cargo/inline_cpp_utils",
     "kythe_metadata 0.0.0": "cargo/common/kythe_metadata",
     "lifetime_annotations_sys 0.0.0": "cargo/lifetime_annotations/lifetime_annotations_sys",
     "lifetime_substitutions_sys 0.0.0": "cargo/lifetime_annotations/lifetime_substitutions_sys",
     "lifetime_symbol_table_sys 0.0.0": "cargo/lifetime_annotations/lifetime_symbol_table_sys",
     "lifetime_sys 0.0.0": "cargo/lifetime_annotations/lifetime_sys",
+    "lossy_formatter 0.1.0": "support/cargo/lossy_formatter",
     "memoized 0.0.0": "cargo/common/memoized",
     "multiplatform_testing 0.0.0": "cargo/common/multiplatform_testing",
+    "oops 0.1.0": "support/cargo/oops",
+    "operator 0.1.0": "support/cargo/operator",
     "pointee_type_sys 0.0.0": "cargo/lifetime_annotations/pointee_type_sys",
     "pragma_sys 0.0.0": "cargo/nullability/pragma_sys",
     "rs_bindings_from_cc 0.0.0": "cargo/rs_bindings_from_cc/rs_bindings_from_cc",

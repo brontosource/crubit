@@ -4,6 +4,10 @@
 
 include_guard(GLOBAL)
 
+set(CRUBIT_CLANG_RESOURCE_DIR "" CACHE PATH
+  "Clang resource directory (builtin headers) for rs_bindings_from_cc. \
+Defaults to the C++ compiler's; ideally matches the tool's LLVM version.")
+
 # Validates the toolchain and initializes Crubit's global state. Runs once per
 # configure; called by every public Crubit function, so that projects which
 # include Crubit only for its C++ support libraries are not affected.
@@ -58,6 +62,20 @@ function(_crubit_init_toolchain)
     message(FATAL_ERROR
       "Crubit requires libc++ (set -stdlib=libc++ in CMAKE_CXX_FLAGS and build "
       "all C++ code, including dependencies, against it).")
+  endif()
+
+  if(NOT CRUBIT_CLANG_RESOURCE_DIR)
+    execute_process(
+      COMMAND "${CMAKE_CXX_COMPILER}" -print-resource-dir
+      OUTPUT_VARIABLE resource_dir
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      RESULT_VARIABLE result)
+    if(NOT result EQUAL 0 OR NOT IS_DIRECTORY "${resource_dir}/include")
+      message(FATAL_ERROR
+        "Crubit: could not determine the Clang resource directory from "
+        "${CMAKE_CXX_COMPILER}. Set CRUBIT_CLANG_RESOURCE_DIR.")
+    endif()
+    set_property(CACHE CRUBIT_CLANG_RESOURCE_DIR PROPERTY VALUE "${resource_dir}")
   endif()
 
   set(crates_dir "${CMAKE_BINARY_DIR}/crubit_crates")
