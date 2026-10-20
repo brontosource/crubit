@@ -76,3 +76,5 @@ crubit_add_fixture(not_libcxx LINUX_ONLY FAIL_REGEX "Crubit requires libc\\+\\+"
 crubit_add_fixture(clang_args)
 crubit_add_fixture(std_only)
 crubit_add_fixture(basic)
+crubit_add_fixture(bound_deps)
+crubit_add_fixture(unbound_dep)
