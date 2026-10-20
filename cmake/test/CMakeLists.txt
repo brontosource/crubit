@@ -74,3 +74,5 @@ crubit_add_fixture(std_only)
 crubit_add_fixture(basic)
 crubit_add_fixture(bound_deps)
 crubit_add_fixture(unbound_dep)
+crubit_add_fixture(cmake_cc_to_rust
+  SOURCE_DIR ${CRUBIT_SOURCE_DIR}/examples/build_systems/cmake_cc_to_rust)

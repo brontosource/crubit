@@ -130,3 +130,82 @@ name, as well. In `main.cpp`, we can import our `crubit/rust_lib.h` header:
 With that we're calling Rust code from C++! Our CMake integration is subject to
 the same [limitations](crubit.rs/overview/limits.md) as our other build
 integrations.
+
+## CMake: calling C++ from Rust
+
+[rust_api_from_cpp](crubit.rs/cpp/index) can also be used from CMake, so that
+Rust code built with Cargo can call an existing CMake C++ library. Crubit's
+CMake module generates a Rust crate for a C++ library target; a Rust crate
+imported with [Corrosion](https://github.com/corrosion-rs/corrosion) depends on
+it like on any other crate.
+
+### Requirements
+
+*   CMake 3.23 or newer.
+*   Clang and libc++. All C++ code, including dependencies, must be built with
+    `-stdlib=libc++` (the default on macOS). libstdc++ is not supported yet.
+*   A nightly Rust toolchain. (The generated code uses unstable features;
+    Crubit sets `RUSTC_BOOTSTRAP=1` for the crates it links.)
+*   An `rs_bindings_from_cc` binary (see [Building Crubit](crubit.rs/cpp/building)),
+    passed as `-DCRUBIT_RS_BINDINGS_FROM_CC=<path>`.
+*   Optionally, `-DCRUBIT_CLANG_RESOURCE_DIR=<dir>`: Clang's builtin headers for
+    `rs_bindings_from_cc`. It defaults to the C++ compiler's; ideally it comes
+    from the same LLVM version as `rs_bindings_from_cc`.
+
+### Usage
+
+The example in
+[`examples/build_systems/cmake_cc_to_rust`](https://github.com/google/crubit/tree/main/examples/build_systems/cmake_cc_to_rust)
+calls a C++ library that uses the C++ standard library and Abseil:
+
+```cmake
+FetchContent_Declare(crubit ...)
+FetchContent_Declare(Corrosion
+  GIT_REPOSITORY https://github.com/corrosion-rs/corrosion
+  GIT_TAG v0.6.1)
+FetchContent_MakeAvailable(crubit Corrosion)
+
+add_library(greeter STATIC greeter/greeter.cc)
+target_sources(greeter PUBLIC FILE_SET HEADERS BASE_DIRS greeter FILES greeter/greeter.h)
+target_link_libraries(greeter PUBLIC absl::strings absl::time)
+
+# Rust bindings for `greeter`, as the crate `greeter_rs`.
+crubit_rust_bindings(greeter_rs CC_TARGET greeter)
+
+corrosion_import_crate(MANIFEST_PATH rust_app/Cargo.toml)
+crubit_link_rust_bindings(rust_app greeter_rs)
+```
+
+The Rust crate depends on the bindings by name, with version `0.0.0`; Crubit
+patches them in when Corrosion builds the crate:
+
+```toml
+[dependencies]
+greeter_rs = "0.0.0"
+cc_std = "0.0.0"  # Rust bindings for the C++ standard library.
+```
+
+*   `crubit_rust_bindings(<crate> CC_TARGET <target> [HEADERS <header>...]
+    [FEATURES <feature>...])` generates the crate `<crate>` for the public
+    headers of `<target>`: `HEADERS`, or else the target's `HEADERS` file set.
+    `FEATURES` are the [Crubit features](crubit.rs/overview/status) to enable
+    (default: `supported`). It also creates `crubit::<crate>`, the C++ half of
+    the bindings.
+*   `crubit_link_rust_bindings(<rust_target> <crate>...)` makes the crates, and
+    `cc_std`, available to a Rust target imported with Corrosion, and links
+    their C++ halves into it.
+
+If a C++ library uses types of a dependency, call `crubit_rust_bindings` for
+that dependency too; the generated crates then share those types. Declarations
+that use types of dependencies without bindings (Abseil, in the example) are
+skipped, with an explanation in the generated `.rs` file under
+`<build dir>/crubit_crates/<crate>/`.
+
+### Limitations
+
+In addition to the general [limitations](crubit.rs/overview/limits.md):
+
+*   Only libc++ is supported.
+*   Interop with the `cxx` crate (`impl_cxx_extern_type`) is disabled.
+*   Unlike the Bazel build, bindings crates are not compiled with
+    `-Zdefault-visibility=hidden`, since Cargo cannot set per-crate rustflags.

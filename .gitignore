@@ -5,3 +5,4 @@ bazelisk
 MODULE.bazel.lock
 /build-cmake-test
 /cmake/test/*/rust_test/Cargo.lock
+/examples/build_systems/cmake_cc_to_rust/rust_app/Cargo.lock
