@@ -14,6 +14,7 @@
 include_guard(GLOBAL)
 
 include("${CMAKE_CURRENT_LIST_DIR}/internal/CrubitToolchain.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/internal/CrubitClangArgs.cmake")
 
 # Variables set here are visible only in the including directory, so state
 # shared with the functions lives in the cache.
