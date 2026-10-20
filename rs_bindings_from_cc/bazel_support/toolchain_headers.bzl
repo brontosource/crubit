@@ -5,6 +5,8 @@
 """Generates bindings for the toolchain headers."""
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@bazel_tools//tools/cpp:toolchain_utils.bzl", "find_cpp_toolchain")
+load("@crubit_system_headers//:headers.bzl", _SYSTEM_HEADERS = "HEADERS", _SYSTEM_SYSROOT = "SYSROOT")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load(
     "@rules_crubit//rs_bindings_from_cc/bazel_support:providers.bzl",
@@ -32,6 +34,22 @@ def _filter_headers_without_suffixes(input_list, suffixes):
 
 def _add_prefix(strings, prefix):
     return [prefix + s for s in strings]
+
+def _system_header_paths(ctx):
+    """Returns the absolute paths of standard library headers that are not Bazel files.
+
+    These are the headers from `@crubit_system_headers` (e.g. the macOS SDK's libc++ and libc),
+    provided that the C++ toolchain compiles against the sysroot they were found in.
+    """
+    if not _SYSTEM_SYSROOT:
+        return []
+    sysroot = find_cpp_toolchain(ctx).sysroot
+    if not sysroot or sysroot.rstrip("/") != _SYSTEM_SYSROOT:
+        return []
+    return [_SYSTEM_SYSROOT + "/" + h for h in _SYSTEM_HEADERS]
+
+def _filter_paths_with_suffixes(paths, suffixes):
+    return [p for p in paths if any([p.endswith("/" + suffix) for suffix in suffixes])]
 
 def _bindings_for_toolchain_headers_impl(ctx):
     toolchain = ctx.toolchains["@rules_crubit//rs_bindings_from_cc/bazel_support:toolchain_type"]
@@ -62,11 +80,13 @@ def _bindings_for_toolchain_headers_impl(ctx):
         ctx.attr.public_libcxx_hdrs,
     )
 
+    system_std_paths = _system_header_paths(ctx)
+
     target_args = depset(
         direct = [
             json.encode({
                 "t": str(ctx.label),
-                "h": [hdr.path for hdr in std_files + builtin_libcxx_files],
+                "h": [hdr.path for hdr in std_files + builtin_libcxx_files] + system_std_paths,
                 "f": ["all", "no_impl_cxx_extern_type", "no_assume_lifetimes"],
             }),
             json.encode({
@@ -83,6 +103,10 @@ def _bindings_for_toolchain_headers_impl(ctx):
     prefixed_libc_hdrs += _add_prefix(ctx.attr.public_libc_hdrs, "usr/include/")
     prefixed_libc_hdrs += _add_prefix(ctx.attr.public_libc_hdrs, "include/")
     public_libc_files = _filter_headers_with_suffixes(std_files, prefixed_libc_hdrs)
+    system_public_paths = (
+        _filter_paths_with_suffixes(system_std_paths, prefixed_libcxx_hdrs) +
+        _filter_paths_with_suffixes(system_std_paths, prefixed_libc_hdrs)
+    )
 
     header_includes = []
     for hdr in ctx.attr.public_libcxx_hdrs + ctx.attr.public_libc_hdrs:
@@ -107,11 +131,15 @@ def _bindings_for_toolchain_headers_impl(ctx):
         else:
             extra_rs_srcs.extend([(f, "") for f in target.files.to_list()])
     public_hdrs = public_libc_files + public_libcxx_files + ctx.files.extra_hdrs
+
+    attr = ctx.attr
+
     bindings_providers = generate_and_compile_bindings(
         ctx,
-        ctx.attr,
+        attr,
         compilation_context = stl_compilation_context,
         public_hdrs = public_hdrs,
+        system_public_hdr_paths = system_public_paths,
         header_includes = header_includes,
         action_inputs = std_and_builtin_files,
         target_args = target_args,

@@ -18,9 +18,6 @@ rust_library(
     name = "do_not_bind",
     testonly = 1,
     srcs = ["do_not_bind.rs"],
-    aspect_hints = [
-        "//features:experimental",
-    ],
     edition = "2024",
     proc_macro_deps = [
         "//support:crubit_annotate",
@@ -44,6 +41,8 @@ golden_test(
         "macos",
     ],
     rust_library = "do_not_bind",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 crubit_cc_test(
@@ -53,6 +52,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":do_not_bind_cc_api",
         "@googletest//:gtest_main",

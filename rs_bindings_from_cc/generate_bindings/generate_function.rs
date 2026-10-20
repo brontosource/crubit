@@ -20,10 +20,11 @@ use database::{intern, BindingsGenerator};
 use error_report::{anyhow, bail, ErrorList};
 use errors::{bail_to_errors, Errors, ErrorsOr};
 use flagset::FlagSet;
-use generate_comment::{generate_doc_comment, parse_extended_source_loc};
+use generate_comment::{generate_doc_comment, kythe_name_location};
 use generate_function_thunk::{
     generate_function_assertion, generate_function_thunk, generate_function_thunk_impl,
-    generate_inline_cpp_call, ident_fragment_from_mangled_name, thunk_ident,
+    generate_inline_cpp_call, ident_fragment_from_mangled_name, is_spaceship_operator,
+    spaceship_thunk_return_type, thunk_ident,
 };
 use ir::*;
 use itertools::Itertools;
@@ -480,7 +481,6 @@ fn generate_cc_operator_index_nonmut_impls<'a>(
         drop_return: false,
         associated_return_type: Some(make_rs_ident("Output")),
         force_const_reference_params: false,
-        always_public: false,
     };
     Ok((func_name, impl_kind))
 }
@@ -525,19 +525,19 @@ fn generate_cc_operator_index_mut_impls<'a>(
         drop_return: false,
         associated_return_type: Some(make_rs_ident("Output")),
         force_const_reference_params: false,
-        always_public: false,
     };
     Ok((func_name, impl_kind))
 }
 
-/// Generates the shape of a `PartialOrd` impl backed by one of the C++ relational operators
-/// (`<`, `>`, `<=`, `>=`).
+/// Generates the shape of a `PartialOrd` impl backed by one of the C++ comparison operators
+/// (`<=>`, `<`, `>`, `<=`, `>=`).
 ///
 /// Rust only allows a single `PartialOrd` impl for a given pair of operand types, so if the C++
-/// type overloads several relational operators, only the most preferred one (see
+/// type overloads several comparison operators, only the most preferred one (see
 /// [`PartialOrdOp::ALL`]) is bound. The remaining operators emit an explanatory error comment and
-/// are served by the default `PartialOrd` methods, which are derived from the generated
-/// `partial_cmp`.
+/// are served by the default `PartialOrd` methods, which are derived from `partial_cmp`.
+/// `operator<=>` implements `partial_cmp` directly; for the other operators, `partial_cmp` is
+/// synthesized.
 fn api_func_shape_for_operator_partial_ord<'a>(
     db: &BindingsGenerator<'a>,
     func: &Func<'a>,
@@ -657,12 +657,6 @@ fn api_func_shape_for_operator_assign<'a>(
         drop_return: true,
         associated_return_type: None,
         force_const_reference_params: false,
-        // OK to always be public: the only type in the param list
-        // depends on self, so it's only usable within the current
-        // crate. Also, the trait is owned by Crubit, and callers
-        // have no reason to define their own impl given that it's
-        // not usable outside this crate.
-        always_public: true,
     };
     Some((func_name, impl_kind))
 }
@@ -790,7 +784,7 @@ fn record_type_of_compound_assignment<'a, 'b>(
 /// Reports a fatal error generating bindings for a function.
 /// Fatal errors should only be reported
 fn report_fatal_func_error(db: &BindingsGenerator<'_>, func: &Func<'_>, msg: &str) {
-    db.fatal_errors().report(&format!("{}: {}", func.source_loc(), msg));
+    db.fatal_errors().report(&format!("{}: {}", DeclLocationOrUnknown(func.decl_loc()), msg));
 }
 
 fn api_func_shape_for_operator<'a>(
@@ -808,13 +802,9 @@ fn api_func_shape_for_operator<'a>(
     match op.name() {
         "==" => api_func_shape_for_operator_eq(db, func, param_types, errors).ok(),
         "!=" => api_func_shape_for_operator_ne(db, func, param_types, errors).ok().flatten(),
-        "<=>" => {
-            errors.add(anyhow!("Three-way comparison operator not yet supported (b/219827738)"));
-            None
-        }
-        "<" | ">" | "<=" | ">=" => {
+        "<=>" | "<" | ">" | "<=" | ">=" => {
             let partial_ord_op = PartialOrdOp::from_cc_name(op.name())
-                .expect("relational operator should map to a PartialOrdOp");
+                .expect("comparison operator should map to a PartialOrdOp");
             api_func_shape_for_operator_partial_ord(db, func, param_types, partial_ord_op, errors)
                 .ok()
         }
@@ -852,7 +842,6 @@ fn api_func_shape_for_operator<'a>(
                     drop_return: true,
                     associated_return_type: None,
                     force_const_reference_params: false,
-                    always_public: false,
                 };
                 Some((func_name, impl_kind))
             } else {
@@ -871,7 +860,6 @@ fn api_func_shape_for_operator<'a>(
                     drop_return: false,
                     associated_return_type: Some(make_rs_ident("Output")),
                     force_const_reference_params: false,
-                    always_public: false,
                 };
                 Some((func_name, impl_kind))
             }
@@ -956,8 +944,6 @@ fn api_func_shape_for_destructor<'a>(
             drop_return: false,
             associated_return_type: None,
             force_const_reference_params: false,
-            // OK to be always_public: canonical case.
-            always_public: true,
         };
         Some((func_name, impl_kind))
     } else {
@@ -975,8 +961,6 @@ fn api_func_shape_for_destructor<'a>(
             drop_return: false,
             associated_return_type: None,
             force_const_reference_params: false,
-            // OK to be always_public: canonical case.
-            always_public: true,
         };
         Some((func_name, impl_kind))
     }
@@ -1086,9 +1070,6 @@ fn api_func_shape_for_constructor<'a>(
             drop_return: false,
             associated_return_type: Some(make_rs_ident("CtorType")),
             force_const_reference_params: false,
-            // OK to be always public: the trait only has a static method,
-            // meaning it's only usable within the current target anyway.
-            always_public: true,
         };
         return Some((make_rs_ident("ctor_new"), impl_kind));
     }
@@ -1237,7 +1218,6 @@ fn api_func_shape_for_conversion_operator<'a>(
         drop_return: false,
         associated_return_type,
         force_const_reference_params: false,
-        always_public: true,
     };
     Some((func_name, impl_kind))
 }
@@ -1460,17 +1440,14 @@ fn adjust_param_types_for_trait_impl<'a>(
     ParamValueAdjustments { clone_prefixes, clone_suffixes }
 }
 
-/// A getter or setter which can be implemented by directly reading or writing the underlying
-/// field, instead of by calling a C++ thunk.
-struct ThunklessAccessor<'a> {
-    kind: ThunklessAccessorKind,
-    field_type: RsTypeKind<'a>,
-    offset: usize,
-}
-
-enum ThunklessAccessorKind {
-    Getter,
-    Setter,
+/// A function which can be implemented directly in Rust, instead of by calling a C++ thunk.
+enum ThunklessImpl<'a> {
+    /// A getter which reads the underlying field.
+    Getter { offset: usize },
+    /// A setter which writes the underlying field.
+    Setter { field_type: RsTypeKind<'a>, offset: usize },
+    /// A constructor which zero-fills the object.
+    ZeroedConstructor,
 }
 
 /// Returns whether a getter returning `return_type` from a field of type `field_type` can be
@@ -1506,12 +1483,12 @@ fn can_use_thunkless_setter(field_type: &RsTypeKind, param_type: &RsTypeKind) ->
         )
 }
 
-fn thunkless_accessor<'a>(
+fn thunkless_impl<'a>(
     db: &BindingsGenerator<'a>,
     func: &Func<'a>,
     param_types: &[RsTypeKind<'a>],
     return_type: &RsTypeKind<'a>,
-) -> Option<ThunklessAccessor<'a>> {
+) -> Option<ThunklessImpl<'a>> {
     if !db
         .ir()
         .target_crubit_features(func.owning_target())
@@ -1525,23 +1502,69 @@ fn thunkless_accessor<'a>(
             if !can_use_thunkless_getter(&field_type, return_type) {
                 return None;
             }
-            Some(ThunklessAccessor {
-                kind: ThunklessAccessorKind::Getter,
-                field_type,
-                offset: getter.offset,
-            })
+            Some(ThunklessImpl::Getter { offset: getter.offset })
         }
         MemberFuncSemantic::Setter(setter) => {
             let field_type = db.rs_type_kind(setter.type_.clone()).ok()?;
             if !can_use_thunkless_setter(&field_type, param_types.get(1)?) {
                 return None;
             }
-            Some(ThunklessAccessor {
-                kind: ThunklessAccessorKind::Setter,
-                field_type,
-                offset: setter.offset,
-            })
+            Some(ThunklessImpl::Setter { field_type, offset: setter.offset })
         }
+        MemberFuncSemantic::Constructor => Some(ThunklessImpl::ZeroedConstructor),
+    }
+}
+
+/// Returns whether `func` returns `std::strong_ordering`.
+///
+/// This only checks the name of the returned record. This is sufficient for `operator<=>`, because
+/// the C++ importer only imports `operator<=>` if it returns a comparison category type from the
+/// `std` namespace.
+fn returns_strong_ordering(db: &BindingsGenerator<'_>, func: &Func<'_>) -> bool {
+    let Ok(return_type) = db.rs_type_kind(func.return_type().clone()) else {
+        return false;
+    };
+    matches!(
+        return_type.unalias(),
+        RsTypeKind::Record { record, .. } if record.cc_name().as_str() == "strong_ordering"
+    )
+}
+
+/// Adjusts `thunk_result` (an expression that calls the C++ function, either through a thunk or
+/// through `inline_cpp!`) to match the generated Rust function, if needed:
+///
+/// * Negates the result of `operator!=`, when it implements `PartialEq::eq`.
+/// * Discards the result, if `drop_return` is set (e.g. for compound assignment operators).
+/// * Decodes the result of `operator<=>` into an `Option<core::cmp::Ordering>`. See
+///   `spaceship_thunk_return_type`.
+fn adjust_thunk_result_if_needed(
+    impl_kind: &ImplKind<'_>,
+    return_type: &RsTypeKind<'_>,
+    thunk_result: TokenStream,
+) -> TokenStream {
+    let ImplKind::Trait { trait_name, drop_return, .. } = impl_kind else {
+        return thunk_result;
+    };
+    match trait_name {
+        TraitName::PartialEq { negate_thunk_result: true, .. } => quote! { ! #thunk_result },
+        TraitName::PartialOrd { op: PartialOrdOp::Spaceship, .. } => quote! {
+            match #thunk_result {
+                -1 => Some(core::cmp::Ordering::Less),
+                0 => Some(core::cmp::Ordering::Equal),
+                1 => Some(core::cmp::Ordering::Greater),
+                _ => None,
+            }
+        },
+        _ if *drop_return => {
+            if return_type.is_unpin() {
+                // The trailing `;` discards the result.
+                quote! { #thunk_result; }
+            } else {
+                // A `!Unpin` result needs to be constructed before it can be discarded.
+                quote! { let _ = ::ctor::emplace!(#thunk_result); }
+            }
+        }
+        _ => thunk_result,
     }
 }
 
@@ -1553,7 +1576,7 @@ fn generate_func_body<'a>(
     return_type: &RsTypeKind<'a>,
     param_types: &[RsTypeKind<'a>],
     param_value_adjustments: &ParamValueAdjustments,
-    thunkless_accessor: Option<&ThunklessAccessor<'a>>,
+    thunkless_impl: Option<&ThunklessImpl<'a>>,
     thunk_ident: Ident,
     mut thunk_prepare: TokenStream,
     thunk_args: Vec<TokenStream>,
@@ -1577,26 +1600,31 @@ fn generate_func_body<'a>(
         return_type.to_token_stream_replacing_by_self(db, self_type.as_ref())
     };
 
-    if let Some(ThunklessAccessor { kind, field_type, offset }) = thunkless_accessor {
-        let self_arg = &thunk_args[0];
+    if let Some(thunkless_impl) = thunkless_impl {
         // The field is addressed by its offset rather than by name: the Rust struct may represent
         // it as an opaque blob of bytes, or it may belong to a base class.
-        let offset_bytes = offset / 8;
-        let byte_add = if offset_bytes == 0 {
-            quote! {}
-        } else {
-            let offset_bytes = syn::Index::from(offset_bytes);
-            quote! { .byte_add(#offset_bytes) }
+        let byte_add = |offset: usize| {
+            let offset_bytes = offset / 8;
+            if offset_bytes == 0 {
+                quote! {}
+            } else {
+                let offset_bytes = syn::Index::from(offset_bytes);
+                quote! { .byte_add(#offset_bytes) }
+            }
         };
-        let body = match kind {
-            ThunklessAccessorKind::Getter => {
+        let body = match thunkless_impl {
+            ThunklessImpl::Getter { offset } => {
+                let self_arg = &thunk_args[0];
+                let byte_add = byte_add(*offset);
                 // `&raw const`, rather than `&*`, so as not to materialize a reference to the
                 // whole record: `#self_arg` may be a raw pointer.
                 quote! {
                     (&raw const *#self_arg) #byte_add .cast::<#return_type_or_self>().read()
                 }
             }
-            ThunklessAccessorKind::Setter => {
+            ThunklessImpl::Setter { field_type, offset } => {
+                let self_arg = &thunk_args[0];
+                let byte_add = byte_add(*offset);
                 let val_arg = &thunk_args[1];
                 let field_type_tokens = field_type.to_token_stream(db);
                 let is_pinned_mut_ref = match param_types.first() {
@@ -1613,6 +1641,20 @@ fn generate_func_body<'a>(
                 // `write`, rather than an assignment, which would first drop the old value.
                 quote! {
                     (&raw mut *#self_ref) #byte_add .cast::<#field_type_tokens>().write(#val_arg)
+                }
+            }
+            // The importer only marks a constructor as zeroed if it is a trivial default
+            // constructor, and if zero-initializing the object produces all zero bytes. The C++
+            // thunk value-initializes the object, which for such a constructor is the same as
+            // zero-filling it.
+            ThunklessImpl::ZeroedConstructor if return_type.is_unpin() => {
+                quote! { ::core::mem::MaybeUninit::<#return_type_or_self>::zeroed().assume_init() }
+            }
+            ThunklessImpl::ZeroedConstructor => {
+                quote! {
+                    ::ctor::FnCtor::new(move |__crubit_dest: *mut #return_type_or_self| {
+                        __crubit_dest.write_bytes(0, 1);
+                    })
                 }
             }
         };
@@ -1648,17 +1690,8 @@ fn generate_func_body<'a>(
         _ => {
             let mut body = match return_type.passing_convention() {
                 PassingConvention::AbiCompatible | PassingConvention::Void => {
-                    let negate_symbol = if let ImplKind::Trait {
-                        trait_name: TraitName::PartialEq { negate_thunk_result: true, .. },
-                        ..
-                    } = &impl_kind
-                    {
-                        Some(quote! { ! })
-                    } else {
-                        None
-                    };
                     quote! {
-                        #negate_symbol #crate_root_path::detail::#thunk_ident(
+                        #crate_root_path::detail::#thunk_ident(
                             #( #clone_prefixes #thunk_args #clone_suffixes ),*
                         )
                     }
@@ -1722,23 +1755,7 @@ fn generate_func_body<'a>(
                     }
                 }
             };
-            // Discard the return value if requested (for example, when calling a C++
-            // operator that returns a value from a Rust trait that returns
-            // unit).
-            if let ImplKind::Trait { drop_return: true, .. } = impl_kind {
-                if return_type.is_unpin() {
-                    // If it's unpin, just discard it:
-                    body = quote! { #body; };
-                } else {
-                    // Otherwise, in order to discard the return value and return void, we
-                    // need to run the constructor.
-                    body = quote! {let _ = ::ctor::emplace!(#body);};
-                }
-
-                // We would need to do this, but it's no longer used:
-                //    return_type = RsTypeKind::Primitive(PrimitiveType::Unit);
-                let _ = return_type; // proof that we don't need to update it.
-            }
+            body = adjust_thunk_result_if_needed(impl_kind, return_type, body);
             // Rust 2024 requires that bodies of unsafe functions are not exempt from having unsafe
             // blocks.
             body = quote! { unsafe { #body } };
@@ -1941,9 +1958,27 @@ fn rs_type_kinds_for_func<'a>(
                         requires_layout_compatible: false,
                     },
                 )
+                .and_then(|ty| {
+                    // Keep in sync with `func_has_bindings` in `has_bindings.rs`: function codegen
+                    // evaluates `rs_type_kind_with_lifetime_elision` directly before calling
+                    // `func_has_bindings`, so reject C-style arrays here before thunk generation.
+                    if let Some(c_array) = ty.contains_c_array() {
+                        bail!(
+                            "C-style array types are not supported in function signatures yet: \
+                            {} (b/575922365)",
+                            c_array.display_cc_type_name_for_rs_type(),
+                        );
+                    }
+                    Ok(ty)
+                })
                 .map_err(|err| {
                     // Use a shared aggregation fmt key for all "parameter not supported" errors.
-                    let fail = |parameter| anyhow!("{parameter} is not supported: {err}");
+                    let fail = |parameter| {
+                        error_report::because(
+                            anyhow!("{parameter} is not supported: {err}"),
+                            err.clone(),
+                        )
+                    };
                     if i == 0 && func.is_instance_method() {
                         fail(format_args!("`this` parameter"))
                     } else {
@@ -1954,26 +1989,47 @@ fn rs_type_kinds_for_func<'a>(
         })
         .collect();
 
-    let return_type = errors.consume_error(
-        db.rs_type_kind_with_lifetime_elision(
-            func.return_type().clone(),
-            LifetimeOptions {
-                infer_lifetimes,
-                is_return_type: true,
+    let return_type = if is_spaceship_operator(func) {
+        // The C++ comparison category type is not exposed to Rust. See
+        // `spaceship_thunk_return_type`.
+        Some(spaceship_thunk_return_type())
+    } else {
+        errors.consume_error(
+            db.rs_type_kind_with_lifetime_elision(
+                func.return_type().clone(),
+                LifetimeOptions {
+                    infer_lifetimes,
+                    is_return_type: true,
 
-                have_reference_param: param_types.iter().any(|pt| {
-                    matches!(pt, RsTypeKind::Reference { .. } | RsTypeKind::RvalueReference { .. })
-                }),
-                assume_lifetimes: run_lifetime_transform,
-                is_operator,
+                    have_reference_param: param_types.iter().any(|pt| {
+                        matches!(
+                            pt,
+                            RsTypeKind::Reference { .. } | RsTypeKind::RvalueReference { .. }
+                        )
+                    }),
+                    assume_lifetimes: run_lifetime_transform,
+                    is_operator,
 
-                // A by-value return type can hold a bridged type; whether it does is up to
-                // the target's features.
-                requires_layout_compatible: false,
-            },
+                    // A by-value return type can hold a bridged type; whether it does is up to
+                    // the target's features.
+                    requires_layout_compatible: false,
+                },
+            )
+            .and_then(|ty| {
+                if let Some(c_array) = ty.contains_c_array() {
+                    bail!(
+                        "C-style array types are not supported in function signatures yet: \
+                        {} (b/575922365)",
+                        c_array.display_cc_type_name_for_rs_type(),
+                    );
+                }
+                Ok(ty)
+            })
+            .map_err(|err| {
+                error_report::because(anyhow!("Return type is not supported: {err}"), err)
+            }),
         )
-        .map_err(|err| anyhow!("Return type is not supported: {err}")),
-    );
+    };
 
     errors.consolidate()?;
     Ok((param_types, return_type.unwrap()))
@@ -2006,7 +2062,8 @@ fn generate_func_safety_doc<'a>(
     if impl_kind.is_unsafe() &&
         // Skip safety doc for trait impls, since the trait itself
         // should document its safety requirements.
-        !matches!(impl_kind, ImplKind::Trait { .. })
+        (!matches!(impl_kind, ImplKind::Trait { .. }) ||
+         matches!(impl_kind, ImplKind::Trait { trait_name: TraitName::UnsafeCtorNew(_), .. }))
     {
         let mut doc = String::new();
         if let SafetyAnnotation::Unsafe = func.safety_annotation() {
@@ -2071,13 +2128,13 @@ pub fn generate_function<'a>(
 
     // Skip thunk generation if the function is a method on a public base class,
     // as the base class thunk will already have been generated, or if we generate
-    // a direct Rust getter or setter implementation.
+    // a direct Rust implementation (`ThunklessImpl`).
     //
     // Note that this must be computed before `param_types` and `return_type` are adjusted below
     // to match the shape of the generated API: the same value is passed to `generate_func_body`,
     // so that the body cannot end up calling a thunk which was never generated.
-    let thunkless_accessor = thunkless_accessor(db, &func, &param_types, &return_type);
-    let skip_thunk_generation: bool = thunkless_accessor.is_some() || {
+    let thunkless_impl = thunkless_impl(db, &func, &param_types, &return_type);
+    let skip_thunk_generation: bool = thunkless_impl.is_some() || {
         || {
             // Note: `func.inline_cpp_source_text()` is populated by the C++ importer when
             // `carcinize` is enabled.
@@ -2091,8 +2148,7 @@ pub fn generate_function<'a>(
             };
             let Some(base_item) = db.ir().get_decl(enclosing_id) else { return false };
             let Item::Record(_) = base_item else { return false };
-            let Ok(bindings_info) = db.has_bindings(base_item.clone()) else { return false };
-            bindings_info.visibility == Visibility::Public
+            db.has_bindings(base_item.clone()).is_ok()
         }
     }();
 
@@ -2193,7 +2249,11 @@ pub fn generate_function<'a>(
                 && let Some(inline_cpp_body) =
                     generate_inline_cpp_call(db, &func, &thunk_args, body_tokens)?
             {
-                return Ok(inline_cpp_body);
+                return Ok(adjust_thunk_result_if_needed(
+                    &impl_kind,
+                    &return_type,
+                    inline_cpp_body,
+                ));
             }
             generate_func_body(
                 db,
@@ -2202,7 +2262,7 @@ pub fn generate_function<'a>(
                 &return_type,
                 &param_types,
                 &param_value_adjustments,
-                thunkless_accessor.as_ref(),
+                thunkless_impl.as_ref(),
                 thunk_ident(db, &func),
                 thunk_prepare,
                 thunk_args,
@@ -2228,8 +2288,9 @@ pub fn generate_function<'a>(
     // Check to see if we can get precise location information. If it's not available, emit a stub
     // capture tag so we don't ascribe definitions to the wrong location.
     let capture_tags = if db.kythe_annotations()
-        && let Some((file_name, start, end)) = parse_extended_source_loc(func.as_ref().source_loc())
+        && let Some((file_name, start, end)) = kythe_name_location(func.as_ref().decl_loc())
     {
+        let (start, end) = (start.to_string(), end.to_string());
         quote! { __CAPTURE_TAG__ #file_name #start #end }
     } else if db.kythe_annotations() {
         quote! { __CAPTURE_TAG__ "" "0" "0" }
@@ -2240,7 +2301,7 @@ pub fn generate_function<'a>(
     let doc_comment = generate_doc_comment(
         func.doc_comment(),
         generate_func_safety_doc(db, &func, &impl_kind, &param_idents, &param_types).as_deref(),
-        Some(func.as_ref().source_loc()),
+        func.as_ref().decl_loc(),
         db.is_golden_test(),
         db.kythe_annotations(),
     );
@@ -2248,9 +2309,7 @@ pub fn generate_function<'a>(
     let deprecated_attr = func.deprecated().map(|s| DeprecatedAttr(Rc::from(s)));
     let must_use_attr = func.nodiscard().map(|s| MustUseAttr(Rc::from(s)));
 
-    // If there are no bindings, use `Public` for the sake of "keeping on going" when
-    // collecting errors for items that will not actually be generated.
-    let visibility = db.has_bindings(ir::Item::Func(func.clone())).unwrap_or_default().visibility;
+    let visibility = if func.is_pub_crate() { Visibility::PubCrate } else { Visibility::Public };
     let unsafety = if impl_kind.is_unsafe() {
         quote! { unsafe }
     } else {
@@ -2377,7 +2436,7 @@ pub fn generate_function<'a>(
                         &free_return_type,
                         &free_param_types,
                         &param_value_adjustments,
-                        thunkless_accessor.as_ref(),
+                        thunkless_impl.as_ref(),
                         thunk_ident(db, &func),
                         free_thunk_prepare,
                         free_thunk_args,
@@ -2532,13 +2591,12 @@ pub fn generate_function<'a>(
         ImplKind::Trait {
             record: ref trait_record,
             ref trait_name,
-            always_public,
             ref impl_for,
             ref associated_return_type,
             ..
         } => {
-            if !always_public && visibility == Visibility::PubCrate {
-                bail!("Implementation of {trait_name} cannot be restricted to wrappers with pub(crate)")
+            if visibility == Visibility::PubCrate {
+                bail!("Implementation of {trait_name} cannot be restricted with pub(crate)")
             }
             // When the impl block is for some kind of reference to T, consider the lifetime
             // parameters on the self parameter to be trait lifetimes so they can be
@@ -2675,7 +2733,9 @@ pub fn generate_function<'a>(
                     quoted_return_type = quote! { Self::#name };
                 };
                 associated_type
-            } else if let TraitName::PartialOrd { param, op } = &trait_name {
+            } else if let TraitName::PartialOrd { param, op } = &trait_name
+                && *op != PartialOrdOp::Spaceship
+            {
                 let mut self_type = db.rs_type_kind(trait_record.into())?;
                 if let RsTypeKind::Record { ref mut lifetimes, .. } = self_type {
                     *lifetimes = trait_lifetime_params.clone();
@@ -2708,6 +2768,7 @@ pub fn generate_function<'a>(
                         quote! { core::cmp::Ordering::Greater },
                         quote! { core::cmp::Ordering::Less },
                     ),
+                    PartialOrdOp::Spaceship => unreachable!("operator<=> implements partial_cmp"),
                 };
                 quote! {
                     #[inline(always)]
@@ -2858,6 +2919,31 @@ pub fn generate_function<'a>(
                         &unsatisfied_where_clause,
                         trait_name,
                     )?
+                }
+                // `std::strong_ordering` implies that equal values are substitutable, so the
+                // type also gets `Eq` and `Ord`.
+                TraitName::PartialOrd { op: PartialOrdOp::Spaceship, param }
+                    if reportable_status.is_ok()
+                        && **param == self_type_for_extra
+                        && db
+                            .ir()
+                            .target_crubit_features(func.as_ref().owning_target())
+                            .contains(crubit_feature::CrubitFeature::StrongOrderingTraits)
+                        && returns_strong_ordering(db, &func) =>
+                {
+                    quote! {
+                        impl #formatted_trait_generic_params Eq for #formatted_impl_for {}
+
+                        impl #formatted_trait_generic_params Ord for #formatted_impl_for {
+                            #[inline(always)]
+                            fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+                                match self.partial_cmp(other) {
+                                    Some(ordering) => ordering,
+                                    None => unreachable!("`std::strong_ordering` is never unordered"),
+                                }
+                            }
+                        }
+                    }
                 }
                 _ => quote! {},
             };
@@ -3253,6 +3339,11 @@ fn function_signature<'a>(
         _ => None,
     };
     match trait_name {
+        Some(TraitName::PartialOrd { op: PartialOrdOp::Spaceship, .. }) => {
+            // The thunk returns an encoded comparison result, which is decoded in the function
+            // body. See `spaceship_thunk_return_type`.
+            quoted_return_type = Some(quote! { Option<core::cmp::Ordering> });
+        }
         Some(TraitName::PartialOrd { .. } | TraitName::PartialEq { .. }) => {
             if *return_type != RsTypeKind::Primitive(Primitive::Bool) {
                 errors.add(anyhow!(
@@ -3908,5 +3999,14 @@ pub fn adjust_signature_for_indexing_traits<'a>(
 /// This is an implementation of a method of `BindingsGenerator<'db>` - for more
 /// information please see the corresponding doc comment in `db.rs`.
 pub fn mangled_name_counts(db: &BindingsGenerator<'_>) -> Rc<HashMap<Rc<str>, usize>> {
-    Rc::new(db.ir().functions().map(|f| Rc::from(f.mangled_name())).counts())
+    // Names are compared without the `\x01` (don't-mangle) prefix, like the thunk identifiers
+    // derived from them (see `ident_fragment_from_mangled_name`). Clang only adds that prefix (for
+    // `asm` labels) on targets that otherwise prefix symbols, such as macOS, so e.g. `foo` and an
+    // `asm("foo")` label still conflict there.
+    Rc::new(
+        db.ir()
+            .functions()
+            .map(|f| Rc::from(f.mangled_name().strip_prefix('\u{1}').unwrap_or(f.mangled_name())))
+            .counts(),
+    )
 }

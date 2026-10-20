@@ -33,8 +33,8 @@ def escape_cpp_target_name(package_name, crate_name):
     # of both the package name _and_ the target name, which causes "File name too long" error.
     return "".join([char if char.isalnum() else "_" for char in crate_name.elems()])
 
-def _get_hdrs_command_line(hdrs):
-    return ["--public_headers=" + ",".join([x.path for x in hdrs])]
+def _get_hdrs_command_line(hdrs, system_hdr_paths):
+    return ["--public_headers=" + ",".join([x.path for x in hdrs] + system_hdr_paths)]
 
 def _get_extra_rs_srcs_command_line(extra_rs_srcs):
     extra_rs_src_info = []
@@ -55,6 +55,11 @@ def _get_extra_cpp_srcs_command_line(extra_cpp_srcs):
         return []
     return ["--extra_cpp_srcs=" + ",".join([x.path for x in extra_cpp_srcs])]
 
+def _escape_param_file_arg(arg):
+    # See `ExpandParamfiles` in rs_bindings_from_cc/cmdline.cc: arguments are newline-separated, and
+    # a backslash escapes the following character.
+    return arg.replace("\\", "\\\\").replace("\n", "\\\n")
+
 def generate_bindings(
         ctx,
         attr,
@@ -62,6 +67,7 @@ def generate_bindings(
         feature_configuration,
         compilation_context,
         public_hdrs,
+        system_public_hdr_paths,
         header_includes,
         action_inputs,
         target_args,
@@ -78,6 +84,8 @@ def generate_bindings(
       feature_configuration: The feature configuration.
       compilation_context: The compilation context for this action.
       public_hdrs: A list of headers to be passed to the tool via the "--public_headers" flag.
+      system_public_hdr_paths: A list of absolute paths of additional public headers that are not
+        Bazel files (e.g. standard library headers in the macOS SDK).
       header_includes: A list of flags to be passed to the command line with "-include".
       action_inputs: A depset of inputs to the bindings generating action.
       target_args: A depset of strings, each one representing mapping of target to
@@ -152,15 +160,20 @@ def generate_bindings(
     # Order any overrides *after* defaults set above.
     rs_bindings_from_cc_flags += extra_rs_bindings_from_cc_cli_flags
 
-    system_include_directories = depset(
-        direct = cc_toolchain.built_in_include_directories,
-        transitive = [compilation_context.system_includes],
-    )
+    # The C++ toolchain's own compile flags already set up the standard library and builtin header
+    # search paths. (Internally, these were added explicitly by indexing into
+    # `cc_toolchain.built_in_include_directories`, which depends on that toolchain's layout.)
+    system_include_directories = compilation_context.system_includes
 
     local_defines = []
     for d in getattr(attr, "local_defines", []):
         local_defines.append(ctx.expand_make_variables("local_defines", d, {}))
 
+    variables_extension = {
+        "rs_bindings_from_cc_tool": rs_bindings_from_cc_tool.path,
+        "rs_bindings_from_cc_flags": rs_bindings_from_cc_flags + _get_hdrs_command_line(public_hdrs, system_public_hdr_paths) + _get_extra_rs_srcs_command_line(extra_rs_srcs) + _get_unstable_rust_features_command_line(unstable_rust_features) + _get_extra_cpp_srcs_command_line(extra_cpp_srcs),
+        "target_args": target_args,
+    }
     variables = cc_common.create_compile_variables(
         feature_configuration = feature_configuration,
         cc_toolchain = cc_toolchain,
@@ -185,46 +198,48 @@ def generate_bindings(
             local_defines,
             transitive = [compilation_context.defines],
         ),
-        variables_extension = {
-            "rs_bindings_from_cc_tool": rs_bindings_from_cc_tool.path,
-            "rs_bindings_from_cc_flags": rs_bindings_from_cc_flags + _get_hdrs_command_line(public_hdrs) + _get_extra_rs_srcs_command_line(extra_rs_srcs) + _get_unstable_rust_features_command_line(unstable_rust_features) + _get_extra_cpp_srcs_command_line(extra_cpp_srcs),
-            "target_args": target_args,
-        },
+        variables_extension = variables_extension,
     )
 
     # Run the `rs_bindings_from_cc` to generate the _rust_api_impl.cc and _rust_api.rs files.
-    args = ctx.actions.args()
-    args.use_param_file("@%s", use_always = True)
-    args.set_param_file_format("multiline")
-    args.add("--driver_path=" + cc_toolchain.compiler_executable)
-    args.add_all(target_args, before_each = "--target_to_arg")
-    args.add_all(rs_bindings_from_cc_flags + _get_hdrs_command_line(public_hdrs) + _get_extra_rs_srcs_command_line(extra_rs_srcs) + _get_unstable_rust_features_command_line(unstable_rust_features) + _get_extra_cpp_srcs_command_line(extra_cpp_srcs))
-    args.add("--")
-    args.add_all(cc_common.get_memory_inefficient_command_line(
+    #
+    # Internally, the C++ toolchain defines an `rs_bindings_from_cc` action config, so this can be
+    # a `cc_common.create_compile_action`. Off-the-shelf OSS C++ toolchains have no such action, so
+    # instead we take the toolchain's C++ compile flags and invoke `rs_bindings_from_cc` directly.
+    compile_flags = cc_common.get_memory_inefficient_command_line(
         feature_configuration = feature_configuration,
         action_name = ACTION_NAMES.cpp_compile,
         variables = variables,
-    ))
+    )
+    compile_env = cc_common.get_environment_variables(
+        feature_configuration = feature_configuration,
+        action_name = ACTION_NAMES.cpp_compile,
+        variables = variables,
+    )
+    args = ctx.actions.args()
+
+    # `target_args` can be large (e.g. it lists every standard library header), so pass the
+    # arguments via a param file, escaped the way `rs_bindings_from_cc` reads them.
+    args.use_param_file("@%s", use_always = True)
+    args.set_param_file_format("multiline")
+    args.add_all(["--driver_path=" + cc_toolchain.compiler_executable], map_each = _escape_param_file_arg)
+    args.add_all(variables_extension["rs_bindings_from_cc_flags"], map_each = _escape_param_file_arg)
+    args.add_all(target_args, before_each = "--target_to_arg", map_each = _escape_param_file_arg)
+    args.add("--")
+    args.add_all(compile_flags, map_each = _escape_param_file_arg)
     ctx.actions.run(
-        outputs = [x for x in [cc_output, rs_output, namespaces_output, error_report_output] if x != None],
-        inputs = depset(
-            direct = [
-                ctx.executable._clang_format,
-                ctx.executable._rustfmt,
-            ] + ctx.files._rustfmt_cfg + extra_cpp_srcs + public_hdrs,
-            transitive = [
-                action_inputs,
-                compilation_context.headers,
-                cc_toolchain.all_files,
-            ],
-        ),
         executable = rs_bindings_from_cc_tool,
         arguments = [args],
-        mnemonic = "RustBindingsFromCc",
-        env = cc_common.get_environment_variables(
-            feature_configuration = feature_configuration,
-            action_name = ACTION_NAMES.cpp_compile,
-            variables = variables,
+        inputs = depset(
+            direct = public_hdrs + ctx.files._rustfmt_cfg + extra_cpp_srcs,
+            transitive = [action_inputs, compilation_context.headers, cc_toolchain.all_files],
         ),
+        tools = [ctx.executable._clang_format, ctx.executable._rustfmt],
+        outputs = [x for x in [cc_output, rs_output, namespaces_output, error_report_output] if x != None],
+        env = compile_env,
+        # Same mnemonic as the internal `rs_bindings_from_cc` compile action this replaces.
+        mnemonic = "CppHeaderAnalysis",
+        progress_message = "Generating Rust bindings for C++: %{label}",
+        toolchain = "@rules_crubit//rs_bindings_from_cc/bazel_support:toolchain_type",
     )
     return (cc_output, rs_output, namespaces_output, error_report_output)

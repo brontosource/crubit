@@ -59,11 +59,6 @@ pub fn generate_incomplete_record<'a>(
 ) -> Result<ApiSnippets> {
     db.errors().add_category(error_report::Category::NonMovable);
 
-    // If the record won't have bindings, we default to `public` to keep going anyway.
-    let visibility = db
-        .has_bindings(ir::Item::IncompleteRecord(incomplete_record.clone()))
-        .unwrap_or_default()
-        .visibility;
     let features = db.ir().target_crubit_features(&incomplete_record.owning_target().unwrap());
     let cc_type = format_nonportable_cc_type_name(incomplete_record.cc_name().as_str())
         .expect("IncompleteRecord has invalid type name");
@@ -72,7 +67,6 @@ pub fn generate_incomplete_record<'a>(
         generated_items: HashMap::from([(
             incomplete_record.id(),
             GeneratedItem::ForwardDeclare {
-                visibility,
                 ident: make_rs_ident(incomplete_record.rs_name().as_str()),
                 symbol: quote! {#namespace_qualifier #cc_type}.to_string(),
             },
@@ -100,10 +94,56 @@ fn is_debug_formattable(db: &BindingsGenerator, ty: &ir::CcType) -> bool {
             Ok(ir::Item::ExistingRustType(existing_type)) => existing_type.impl_debug(),
             _ => false,
         },
-        // TODO(b/575922365): Support debug formatting for constant-sized C-style arrays.
-        ir::CcTypeVariant::ConstantArray(_) => false,
+        ir::CcTypeVariant::ConstantArray(arr) => is_debug_formattable(db, arr.element_type()),
         ir::CcTypeVariant::Error(_) => false,
     }
+}
+
+/// Returns whether the `impl Debug` generated for `record` prints its fields and base classes.
+///
+/// The `Debug` impl of a union doesn't print any fields. Fields of packed records may be
+/// unaligned, so their `Debug` impl copies each field out instead of taking a reference to it.
+/// Therefore, the `Debug` impl of a packed record only prints fields if every field that would be
+/// printed is `Copy`; otherwise, like the `Debug` impl of a union, it doesn't print any fields.
+fn debug_impl_prints_fields<'a>(db: &BindingsGenerator<'a>, record: &Record<'a>) -> bool {
+    if record.is_union() {
+        return false;
+    }
+    if !record.is_packed() {
+        return true;
+    }
+    record.fields().iter().all(|field| {
+        let Some(field_rs_type_kind) = debug_printed_field_rs_type_kind(db, record, field) else {
+            return true;
+        };
+        // `mutable` fields are wrapped in a `Cell`, which is never `Copy`.
+        !field.is_mutable() && field_rs_type_kind.implements_copy()
+    })
+}
+
+/// If `field` is printed by the field-wise `Debug` impl generated for `record`, returns its type.
+///
+/// This is the single source of truth for which fields are printed: `field_definition` uses it to
+/// set `FieldDefinition::Field::is_debug_formattable`, which `generate_record`'s `debug_impl` uses
+/// to select the fields to print.
+fn debug_printed_field_rs_type_kind<'a>(
+    db: &BindingsGenerator<'a>,
+    record: &Record<'a>,
+    field: &Field<'a>,
+) -> Option<RsTypeKind<'a>> {
+    if field.size() == 0
+        || field.is_bitfield()
+        || field.cpp_identifier().is_none()
+        || !is_debug_formattable(db, field.type_())
+    {
+        return None;
+    }
+    let field_rs_type_kind = get_field_rs_type_kind_for_layout(db, record, field).ok()?;
+    if record.is_packed() && type_has_repr_align(db, &field_rs_type_kind) {
+        // Represented as a blob of bytes.
+        return None;
+    }
+    Some(field_rs_type_kind)
 }
 
 /// Gets the type of `field` for layout purposes.
@@ -251,15 +291,18 @@ fn record_has_repr_align<'a>(db: &BindingsGenerator<'a>, record: &Record<'a>) ->
     if record.override_alignment() || record.is_thread_safe() {
         return true;
     }
-    // Bitfields and fields whose type can't be represented in Rust are emitted
-    // as unaligned byte blobs, so the struct's alignment no longer follows from
-    // its fields and must be set explicitly. Zero-sized fields (e.g. `int : 0;`)
-    // are skipped, as `generate_record` doesn't emit anything for them.
+    // Bitfields, zero-sized fields (e.g. `T[0]`, `T[]`, `int : 0;`, or empty
+    // `[[no_unique_address]]` fields, which `generate_record` omits), and
+    // fields whose type can't be represented in Rust (which are emitted as
+    // unaligned byte blobs) mean the struct's alignment may no longer follow
+    // from its emitted fields and must be set explicitly.
+    // Empty types with `no_unique_address` would normally have an alignment of 1, but if the
+    // empty type has an `alignas`, then alignment could be more than 1.
     for field in record.fields() {
-        if field.size() == 0 {
-            continue;
-        }
-        if field.is_bitfield() || get_field_rs_type_kind_for_layout(db, record, field).is_err() {
+        if field.is_bitfield()
+            || field.size() == 0
+            || get_field_rs_type_kind_for_layout(db, record, field).is_err()
+        {
             return true;
         }
     }
@@ -273,20 +316,23 @@ fn record_has_repr_align<'a>(db: &BindingsGenerator<'a>, record: &Record<'a>) ->
 /// E0588), so fields of these types in packed records are represented as opaque
 /// byte blobs instead.
 fn type_has_repr_align<'a>(db: &BindingsGenerator<'a>, type_kind: &RsTypeKind<'a>) -> bool {
-    let RsTypeKind::Record { record, .. } = type_kind.unalias() else {
-        return false;
-    };
-    if record_has_repr_align(db, record) {
-        return true;
-    }
-    for field in record.fields() {
-        if let Ok(field_type_kind) = db.rs_type_kind(field.type_().clone())
-            && type_has_repr_align(db, &field_type_kind)
-        {
-            return true;
+    match type_kind.unalias() {
+        RsTypeKind::CArray { element_type, .. } => type_has_repr_align(db, element_type),
+        RsTypeKind::Record { record, .. } => {
+            if record_has_repr_align(db, record) {
+                return true;
+            }
+            for field in record.fields() {
+                if let Ok(field_type_kind) = db.rs_type_kind(field.type_().clone())
+                    && type_has_repr_align(db, &field_type_kind)
+                {
+                    return true;
+                }
+            }
+            false
         }
+        _ => false,
     }
-    false
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -388,8 +434,7 @@ fn field_definition<'a>(
         && field_rs_type_kind.is_ok()
         && !field_has_repr_align_in_packed
     {
-        db.type_visibility(record.owning_target(), field_rs_type_kind.clone().unwrap())
-            .unwrap_or_default()
+        Visibility::Public
     } else {
         Visibility::PubCrate
     };
@@ -439,8 +484,7 @@ fn field_definition<'a>(
         visibility,
         ident,
         field_type,
-        is_debug_formattable: field.cpp_identifier().is_some()
-            && is_debug_formattable(db, field.type_()),
+        is_debug_formattable: debug_printed_field_rs_type_kind(db, record, field).is_some(),
         do_not_auto_impl_send_sync,
     })
 }
@@ -816,15 +860,19 @@ pub fn generate_record<'a>(
     };
     let debug_impl = if record.impl_debug() &&
     // Keep the `impl Debug for raw_string_view` string_view.rs already defines.
-    !record.is_raw_string_view() &&
-    !record.is_packed()
+    !record.is_raw_string_view()
     {
         let mut fields: Vec<database::code_snippet::DebugField> = vec![];
-        if !record.is_union() {
+        let prints_fields = debug_impl_prints_fields(db, &record);
+        if prints_fields {
+            // Base class subobjects of packed records may be unaligned, so they are not printed.
+            // This is fine because the impl of a derived class is never exhaustive anyway.
+            let debug_bases: &[UpcastableBase] =
+                if record.is_packed() { &[] } else { &upcastable_bases };
             for UpcastableBase {
                 record: base_record,
                 needs_virtual_upcast: should_virtual_upcast,
-            } in &upcastable_bases
+            } in debug_bases
             {
                 if !base_record.impl_debug() {
                     continue;
@@ -863,9 +911,17 @@ pub fn generate_record<'a>(
                 };
                 let field_name_str = ident.to_string();
                 let clean_field_name_str = field_name_str.trim_start_matches("r#");
+                let expr = if record.is_packed() {
+                    // Fields of packed records may be unaligned, so references to them are not
+                    // allowed (E0793). Copy the field out instead. `debug_impl_prints_fields`
+                    // ensures that every printed field is `Copy`.
+                    quote! { &{ self.#ident } }
+                } else {
+                    quote! { &self.#ident }
+                };
                 fields.push(database::code_snippet::DebugField {
                     name: clean_field_name_str.to_string(),
-                    expr: quote! { &self.#ident },
+                    expr,
                 });
             }
         }
@@ -885,7 +941,7 @@ pub fn generate_record<'a>(
             ident: ident.clone(),
             stubbed_lifetime_params: stubbed_lifetime_params.clone(),
             fields,
-            is_exhaustive: !record.is_union() && !record.is_derived_class() && fields_exhaustive,
+            is_exhaustive: prints_fields && !record.is_derived_class() && fields_exhaustive,
         })
     } else {
         None
@@ -938,7 +994,7 @@ pub fn generate_record<'a>(
         doc_comment_attr: generate_doc_comment(
             record.doc_comment(),
             record_safety.as_deref(),
-            Some(record.as_ref().source_loc()),
+            record.as_ref().decl_loc(),
             db.is_golden_test(),
             db.kythe_annotations(),
         ),
@@ -970,10 +1026,6 @@ pub fn generate_record<'a>(
             }
             annotations
         },
-        visibility: db
-            .has_bindings(ir::Item::Record(record.clone()))
-            .unwrap_or_default()
-            .visibility,
         struct_or_union: if record.is_union() {
             StructOrUnion::Union
         } else {

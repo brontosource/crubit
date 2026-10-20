@@ -1,6 +1,16 @@
 # use `MODULE.bazel`
 build --enable_bzlmod
 
+# fuzztest 20250214.0 still uses the native C++ and proto rules that Bazel 9
+# removed. Newer fuzztest releases load them explicitly but pull in dependency
+# versions that do not resolve with Crubit's.
+common --incompatible_autoload_externally=+@rules_cc,+cc_proto_library
+
+# Bazel's default macOS deployment target (10.11) predates C++17 aligned
+# allocation, which Crubit's support library uses.
+common --enable_platform_specific_config
+build:macos --macos_minimum_os=11.0 --host_macos_minimum_os=11.0
+
 # generic_clang from @llvm-raw//utils/bazel, but c++20 to match Google
 build:generic_clang --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
 build:generic_clang --cxxopt=-std=c++20 --host_cxxopt=-std=c++20 --repo_env=BAZEL_CXXOPTS=-std=c++20
@@ -23,6 +33,12 @@ build:generic_clang --host_per_file_copt=^support/.*@-Wenum-compare-conditional,
 
 build --config=generic_clang
 build --@rules_rust//rust/toolchain/channel=nightly
+# Recent nightly rustc mangles the allocator shim symbols (`__rustc::...`), so C++
+# binaries that link Rust code need rules_rust's Rust-built allocator libraries.
+build --@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True
+# rustfmt config for generated bindings; without an edition, rustfmt assumes
+# 2015 and rejects raw lifetimes such as 'r#type.
+build --@rules_rust//rust/settings:rustfmt.toml=//bazel:rustfmt.toml
 build --@llvm-project//third-party:llvm_enable_lzma=false
 build --@llvm-project//third-party:llvm_enable_zlib=false
 build --@llvm-project//third-party:llvm_enable_zstd=false

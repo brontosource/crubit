@@ -37,7 +37,7 @@ bool_flag(
 
 bool_flag(
     name = "use_label_encoded_names_for_deps",
-    build_setting_default = False,
+    build_setting_default = True,
     visibility = ["//:__subpackages__"],
 )
 
@@ -95,8 +95,11 @@ rs_bindings_from_cc_toolchain(
     binary = "//rs_bindings_from_cc:rs_bindings_from_cc",
     builtin_headers = [
         "@llvm-project//clang:builtin_headers_gen",
+        "@llvm-project//clang:builtin_headers_files",
+        "@llvm-project//compiler-rt:fuzzer_installed_hdrs",
+        "@llvm-project//compiler-rt:sanitizer_installed_hdrs",
     ],
-    stl_headers = ["@llvm_toolchain//:include"],
+    stl_headers = [],
 )
 
 rs_bindings_from_cc_toolchain(

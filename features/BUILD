@@ -28,25 +28,6 @@ crubit_feature_hint(
     visibility = ["//visibility:public"],
 )
 
-_WRAPPER_FEATURES = [
-    "wrapper",
-]
-
-# A feature set containing wrapper-library Crubit features, in addition to the officially supported
-# features.
-#
-# NOTE: New usage of wrapper mode is discouraged.
-#
-# See crubit.rs-features#wrapper
-crubit_feature_hint(
-    name = "wrapper",
-    compatible_with = ["//buildenv/target:non_prod"],
-    crubit_features = SUPPORTED_FEATURES + _WRAPPER_FEATURES,
-    visibility = [
-        "//rs_bindings_from_cc/test/wrapper:__subpackages__",
-    ],
-)
-
 # A feature set enabling forward declaration support.
 crubit_feature_hint(
     name = "forward_declare",
@@ -376,6 +357,28 @@ crubit_feature_hint(
     name = "movable_return_values",
     compatible_with = ["//buildenv/target:non_prod"],
     crubit_features = SUPPORTED_FEATURES + ["movable_return_values"],
+    visibility = ["//visibility:public"],
+)
+
+# A feature set under which C++ types whose `operator<=>` returns `std::strong_ordering` also
+# implement `Eq` and `Ord` (in addition to `PartialOrd`). This flag only impacts rust_api_from_cpp
+# users.
+#
+# See crubit.rs/cpp/operator_overloading
+crubit_feature_hint(
+    name = "strong_ordering_traits",
+    compatible_with = ["//buildenv/target:non_prod"],
+    crubit_features = SUPPORTED_FEATURES + ["strong_ordering_traits"],
+    visibility = ["//visibility:public"],
+)
+
+# A feature set enabling generating Rust bindings for constant-size C-style arrays (`T[N]`).
+#
+# See b/575922365
+crubit_feature_hint(
+    name = "constant_arrays",
+    compatible_with = ["//buildenv/target:non_prod"],
+    crubit_features = SUPPORTED_FEATURES + ["constant_arrays"],
     visibility = ["//visibility:public"],
 )
 

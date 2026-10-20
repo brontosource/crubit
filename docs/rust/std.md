@@ -206,19 +206,27 @@ do not appear in any of the Rust APIs you depend on is a compile-time error.
 
 ## Callables (`Fn`, `FnMut`, `FnOnce`) {#callables}
 
-Rust function traits and callable parameters receive bindings through `rs::FnRef`
-and `rs::Fn`:
+Rust function traits and callable parameters receive bindings through
+`rs::FnRef` and `rs::Fn`:
 
-*   **`rs::FnRef<Sig>`** (`support/rs_std/fn_ref.h`): Non-owning,
-    borrowed view of a callable corresponding to `&dyn Fn` or `&mut dyn FnMut`
-    (or generic `impl Fn` / `impl FnMut`). Does not allocate on the heap.
-*   **`rs::Fn<Sig>`** (`support/rs_std/fn.h`): Owning, heap-allocated
-    callable corresponding to `Box<dyn Fn>`, `Box<dyn FnMut>`, or `Box<dyn FnOnce>`
-    (or generic `impl FnOnce + 'static`). `rs::Fn<Sig &&>` corresponds to `FnOnce`
-    and must be invoked via `std::move(f)(...)`.
+*   **`rs::FnRef<Sig>`** (`support/rs_std/fn_ref.h`):
+    Non-owning, borrowed view of a callable corresponding to `&dyn Fn` or `&mut
+    dyn FnMut` (or generic `impl Fn` / `impl FnMut`). Does not allocate on the
+    heap.
+*   **`rs::Fn<Sig>`** (`support/rs_std/fn.h`): Owning,
+    heap-allocated callable corresponding to `Box<dyn Fn>`, `Box<dyn FnMut>`, or
+    `Box<dyn FnOnce>` (or generic `impl FnOnce + 'static`). `rs::Fn<Sig &&>`
+    corresponds to `FnOnce` and must be invoked via `std::move(f)(...)`.
 *   **`rs::DynCallable<Sig>`**
     (`support/rs_std/dyn_callable.h`): Move-only wrapper for
     Rust `Box<dyn Trait>` objects received in C++, implicitly convertible to
     `absl::AnyInvocable<Sig>`.
 
-See [Callbacks](http://crubit.rs/types/callbacks) for the complete guide and examples.
+See [Callbacks](http://crubit.rs/types/callbacks) for the complete guide and
+examples.
+
+## `Box`
+
+The Rust `Box<T>`, `Pin<Box<T>>`, `Box<[T]>`, and `Box<str>` types receive C++
+bindings as `rs::Box<T>`, `rs::PinBox<T>`, `rs::SliceBox<T>`, and `rs::StrBox`.
+See [Box types](../types/box.md) for more details.

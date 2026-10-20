@@ -18,7 +18,7 @@ extern crate rustc_span;
 extern crate rustc_type_ir;
 
 use arc_anyhow::{Context, Result};
-use code_gen_utils::CcInclude;
+use code_gen_utils::{CcInclude, NamespaceQualifier};
 use crubit_abi_type::CrubitAbiType;
 use crubit_attr::{CppConvertibleAttrs, CppLayoutEquivalentAttrs};
 use crubit_feature::CrubitFeature;
@@ -249,6 +249,10 @@ pub fn format_top_level_ns_for_crate(db: &BindingsGenerator<'_>, krate: CrateNum
         let renamed = rename_c_stdlib_functions(renamed);
         Rc::from([Symbol::intern(renamed.as_ref())])
     }
+}
+
+pub fn include_from_path(db: &BindingsGenerator<'_>, path: &str) -> CcInclude {
+    code_gen_utils::include_from_path(db.crubit_support_path_format(), path)
 }
 
 pub fn format_cc_ident_symbol(db: &BindingsGenerator, ident: Symbol) -> Result<Ident> {
@@ -782,7 +786,7 @@ fn format_ty_for_cc_impl<'tcx>(
             });
         let mut prereqs = CcPrerequisites::default();
         for include_path in &specialization.include_paths {
-            prereqs.includes.insert(CcInclude::from_path(include_path.as_ref()));
+            prereqs.includes.insert(include_from_path(db, include_path.as_ref()));
         }
         return Ok(CcSnippet { tokens, prereqs });
     }
@@ -1818,29 +1822,45 @@ fn format_ty_for_rs_with_lifetime_mode<'tcx>(
                 has_cpp_type || is_supported_generic_type,
                 "Generic types without composable bridging are not supported yet (b/259749095)"
             );
-            let canonical_name = db.symbol_canonical_name(adt.did())?;
-            let type_name = canonical_name.format_for_rs();
-            let generic_params = if substs.is_empty() {
-                quote! {}
-            } else {
-                let generic_params = substs
-                    .iter()
-                    .map(|subst| match subst.kind() {
-                        ty::GenericArgKind::Type(ty) => lifetime_mode.format_ty(db, ty),
-                        ty::GenericArgKind::Lifetime(_) => match lifetime_mode {
-                            RsLifetimeMode::Default | RsLifetimeMode::ClosureReturn => {
-                                Ok(quote! { 'static })
+            let format_adt = || -> Result<TokenStream> {
+                let canonical_name = db.symbol_canonical_name(adt.did())?;
+                let type_name = canonical_name.format_for_rs();
+                let generic_params = if substs.is_empty() {
+                    quote! {}
+                } else {
+                    let generic_params = substs
+                        .iter()
+                        .map(|subst| match subst.kind() {
+                            ty::GenericArgKind::Type(ty) => lifetime_mode.format_ty(db, ty),
+                            ty::GenericArgKind::Lifetime(_) => match lifetime_mode {
+                                RsLifetimeMode::Default | RsLifetimeMode::ClosureReturn => {
+                                    Ok(quote! { 'static })
+                                }
+                                RsLifetimeMode::ClosureParam => Ok(quote! { '_ }),
+                            },
+                            ty::GenericArgKind::Const(_) => {
+                                bail!("crubit.rs/errors/unsupported_type: `const`-generic ADTs are not supported yet (b/259749095)")
                             }
-                            RsLifetimeMode::ClosureParam => Ok(quote! { '_ }),
-                        },
-                        ty::GenericArgKind::Const(_) => {
-                            bail!("crubit.rs/errors/unsupported_type: `const`-generic ADTs are not supported yet (b/259749095)")
-                        }
-                    })
-                    .collect::<Result<Vec<TokenStream>>>()?;
-                quote! { < #(#generic_params),* > }
+                        })
+                        .collect::<Result<Vec<TokenStream>>>()?;
+                    quote! { < #(#generic_params),* > }
+                };
+                Ok(quote! { #type_name #generic_params })
             };
-            quote! { #type_name #generic_params }
+            match format_adt() {
+                Ok(tokens) => tokens,
+                Err(err) => {
+                    let erased_ty = db.tcx().erase_and_anonymize_regions(ty);
+                    if let Some(specialization) =
+                        db.specializations().iter().find(|s| s.ty == erased_ty)
+                        && let Ok(canonical_name) = db.symbol_canonical_name(specialization.def_id)
+                    {
+                        canonical_name.format_for_rs()
+                    } else {
+                        return Err(err);
+                    }
+                }
+            }
         }
         ty::TyKind::RawPtr(pointee_ty, mutbl) => {
             let qualifier = match mutbl {
@@ -1999,7 +2019,9 @@ pub fn crubit_abi_type_from_ty<'tcx>(
             let attrs = crubit_attr::get_attrs(db.tcx(), adt.did())
                 .unwrap_or_else(|e| panic!("Invalid attrs for {ty}: {e}"));
 
-            if let Some(convertible_attrs) = attrs.get_cpp_convertible_attrs()? {
+            if let Some(convertible_attrs) =
+                attrs.get_cpp_convertible_attrs(db.crubit_support_path_format())?
+            {
                 bail!(
                     "Failed to construct the CrubitAbiType for {ty} because it has bridging attrs for a different kind of bridging: {convertible_attrs:?}"
                 );
@@ -2007,7 +2029,7 @@ pub fn crubit_abi_type_from_ty<'tcx>(
                 let fully_qualified_name = db.symbol_canonical_name(adt.did())?;
                 let mut prereqs = CcPrerequisites::default();
                 for path in &attrs.include_paths {
-                    prereqs.includes.insert(CcInclude::from_path(path.as_str()));
+                    prereqs.includes.insert(include_from_path(db, path.as_str()));
                 }
                 return Ok(CrubitAbiTypeWithCcPrereqs {
                     crubit_abi_type: CrubitAbiType::Transmute {
@@ -2206,7 +2228,7 @@ pub fn cpp_layout_equivalent_type<'tcx>(
     }
 
     let Some(CppLayoutEquivalentAttrs { include_paths, cpp_type }) =
-        attrs.get_cpp_layout_equivalent_attrs()?
+        attrs.get_cpp_layout_equivalent_attrs(db.crubit_support_path_format())?
     else {
         return Ok(None);
     };
@@ -2252,7 +2274,7 @@ fn is_bridged_adt<'tcx>(db: &BindingsGenerator<'tcx>, ty: Ty<'tcx>) -> Result<Op
         cpp_type,
         cpp_to_rust_converter,
         rust_to_cpp_converter,
-    }) = attrs.get_cpp_convertible_attrs()?
+    }) = attrs.get_cpp_convertible_attrs(db.crubit_support_path_format())?
     else {
         return Ok(None);
     };
@@ -2564,4 +2586,42 @@ impl AsRef<str> for CcType {
             CcType::Other(cpp_type) | CcType::Pointer(cpp_type) => cpp_type.as_str(),
         }
     }
+}
+
+pub fn format_with_cc_body(
+    db: &BindingsGenerator,
+    ns: &NamespaceQualifier,
+    mut tokens: TokenStream,
+    attributes: Vec<TokenStream>,
+) -> Result<TokenStream> {
+    if tokens.is_empty() {
+        return Ok(quote! {});
+    }
+    let mut namespaces = ns.parts().map(|s| format_cc_ident(db, s)).collect::<Result<Vec<_>>>()?;
+
+    // Nested namespace syntax does not accept attributes (see b/445613694), so we have to split out
+    // the with-attribute decl to contain only the trailing namespace.
+    // TODO: b/455882065 - Figure out the correct way to handle top level aliases of deprecated
+    // definitions and remove this workaround.
+    if !attributes.is_empty() && !namespaces.is_empty() {
+        let innermost_namespace = namespaces
+            .pop()
+            .expect("there should be at least one namespace if there are attributes");
+        tokens = quote! {
+            __NEWLINE__
+            namespace #(#attributes)* #innermost_namespace { __NEWLINE__
+                #tokens __NEWLINE__
+            } __NEWLINE__
+        };
+    }
+
+    if !namespaces.is_empty() {
+        tokens = quote! {
+            __NEWLINE__
+            namespace #(#namespaces)::* { __NEWLINE__
+                #tokens __NEWLINE__
+            } __NEWLINE__
+        };
+    }
+    Ok(tokens)
 }

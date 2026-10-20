@@ -3,7 +3,7 @@
 <!-- mdformat-off -->
 
 [Home](./index.md)
-[Are We Crubit Yet?](./overview/status.md) <!-- mdformat-on -->
+[Supported Features](./overview/status.md) <!-- mdformat-on -->
 
 # Types
 
@@ -12,6 +12,7 @@
 -   [Pointer Types](./types/pointer.md)
 -   [Callbacks (`absl::AnyInvocable` and `Fn`/`FnMut`/`FnOnce`)](./types/callbacks.md)
 -   [`absl::Status`](./types/absl_status.md)
+-   [Box (`Box<T>`, `Pin<Box<T>>`, `Box<[T]>`, `Box<str>`)](./types/box.md)
 -   [Protobuf](./types/protobuf.md)
 
 # C++ Bindings for Rust Libraries
@@ -49,6 +50,7 @@
 -   [References and Lifetimes](./cpp/references_and_lifetimes.md)
 -   [Enums](./cpp/enums.md)
 -   [Inline C++](./cpp/inline_cpp.md)
+-   [Standard Library Types](./cpp/std.md)
 
 # Errors
 
@@ -56,7 +58,6 @@
 -   [Unsupported types](./errors/unsupported_type.md)
 -   [Unknown targets](./errors/unknown_target.md)
 -   [Nested types](./errors/nested_type.md)
--   [Visibility](./errors/visibility.md)
 -   [Unknown attributes](./errors/unknown_attribute.md)
 -   [Bridge types as struct fields](./errors/bridge_field.md)
 -   [Compound types containing bridge types](./errors/bridge_compound_type.md)
@@ -69,8 +70,12 @@
     -   [CMake](./overview/cmake.md)
 -   [Cargo build](./overview/cargo_build.md)
     -   [Protobuf in the Cargo build](./overview/cargo_build_protobuf.md)
--   [Limitations](./overview/limits.md)
 -   [Required unstable features of Rust](./overview/unstable_features.md)
+-   [Memory Safety](./overview/safety.md)
+
+# Future Functionality
+
+-   [Limitations](./overview/limits.md)
 
 # Design
 

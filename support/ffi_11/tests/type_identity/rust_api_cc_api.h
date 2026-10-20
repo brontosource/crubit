@@ -6,8 +6,8 @@
 // rust_api_golden
 
 // clang-format off
-#ifndef THIRD_PARTY_CRUBIT_SUPPORT_FFI_11_TESTS_TYPE_IDENTITY_RUST_API_GOLDEN
-#define THIRD_PARTY_CRUBIT_SUPPORT_FFI_11_TESTS_TYPE_IDENTITY_RUST_API_GOLDEN
+#ifndef SUPPORT_FFI_11_TESTS_TYPE_IDENTITY_RUST_API_GOLDEN
+#define SUPPORT_FFI_11_TESTS_TYPE_IDENTITY_RUST_API_GOLDEN
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wreturn-type-c-linkage"
@@ -60,12 +60,10 @@ unsigned long long c_ulonglong();
 
 ::std::uint16_t c_ushort();
 
-// Error generating bindings for function `rust_api_golden::c_wchar_t` defined
-// at
-// support/ffi_11/tests/type_identity/rust_api.rs;l=52:
-// Error formatting function return type `ffi_11::wchar_type::c_wchar_t`: Failed
-// to format type for the definition of `ffi_11::wchar_type::c_wchar_t`:
-// `wchar_t` is a C++ reserved word and can't be used as a C++ identifier
+// Error generating bindings for function `rust_api_golden::c_wchar_t`: Error
+// formatting function return type `ffi_11::wchar_type::c_wchar_t`: Failed to
+// format type for the definition of `ffi_11::wchar_type::c_wchar_t`: `wchar_t`
+// is a C++ reserved word and can't be used as a C++ identifier
 
 namespace __crubit_internal {
 extern "C" void __crubit_thunk_c_uchar(decltype(char(0))* __ret_ptr);
@@ -208,4 +206,4 @@ inline ::std::uint16_t c_ushort() {
 }  // namespace rust_api
 
 #pragma clang diagnostic pop
-#endif  // THIRD_PARTY_CRUBIT_SUPPORT_FFI_11_TESTS_TYPE_IDENTITY_RUST_API_GOLDEN
+#endif  // SUPPORT_FFI_11_TESTS_TYPE_IDENTITY_RUST_API_GOLDEN

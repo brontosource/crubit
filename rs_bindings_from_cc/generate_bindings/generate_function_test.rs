@@ -282,6 +282,57 @@ fn test_non_pod_param_and_return_with_inline_cpp() -> Result<()> {
     Ok(())
 }
 
+/// `PartialEq::eq` is implemented by negating the result of `operator!=`, including when
+/// `operator!=` is called through `inline_cpp!`.
+#[gtest]
+fn test_operator_ne_with_inline_cpp() -> Result<()> {
+    let rs_api = generate_bindings_tokens_from_cc_with_inline_cpp(
+        "struct SomeStruct final { \
+             inline bool operator!=(const SomeStruct& other) const { return i != other.i; } \
+             int i; \
+         };",
+    )?
+    .rs_api;
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            impl PartialEq for SomeStruct {
+                #[inline(always)]
+                fn eq ... -> bool {
+                    !unsafe {
+                        (::inline_cpp_macro::inline_cpp! { ... })(...)
+                    }
+                }
+            }
+        }
+    );
+    Ok(())
+}
+
+/// The result of a compound assignment operator is dropped, including when the operator is called
+/// through `inline_cpp!`.
+#[gtest]
+fn test_compound_assignment_with_inline_cpp() -> Result<()> {
+    let rs_api = generate_bindings_tokens_from_cc_with_inline_cpp(
+        "struct SomeStruct final { \
+             inline SomeStruct& operator+=(const SomeStruct& other) { i += other.i; return *this; } \
+             int i; \
+         };",
+    )?
+    .rs_api;
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            fn add_assign ... {
+                unsafe {
+                    (::inline_cpp_macro::inline_cpp! { ... })(...)
+                };
+            }
+        }
+    );
+    Ok(())
+}
+
 #[gtest]
 fn test_simple_function_with_types_from_other_target() -> Result<()> {
     let BindingsTokens { rs_api, rs_api_impl } = generate_bindings_tokens_from_cc_dependency(
@@ -1827,6 +1878,269 @@ fn test_impl_all_relational_operators_only_binds_lt() -> Result<()> {
     Ok(())
 }
 
+/// A minimal stand-in for `<compare>`, which is not available in these tests.
+const FAKE_COMPARE_HEADER: &str = r#"
+    namespace std {
+    struct strong_ordering { signed char value; };
+    struct weak_ordering { signed char value; };
+    }  // namespace std
+"#;
+
+/// Generates bindings for a struct whose `operator<=>` returns `ordering_type` (e.g.
+/// `std::strong_ordering`, or `StrongOrderingAlias`), with the given extra Crubit feature enabled.
+fn generate_spaceship_operator_bindings(
+    ordering_type: &str,
+    extra_feature: Option<&str>,
+) -> Result<BindingsTokens> {
+    let proto = ir_proto_from_cc(&format!(
+        r#"#pragma clang lifetime_elision
+        {FAKE_COMPARE_HEADER}
+        using StrongOrderingAlias = std::strong_ordering;
+        struct SomeStruct final {{
+            bool operator==(const SomeStruct& other) const;
+            {ordering_type} operator<=>(const SomeStruct& other) const;
+            int i;
+        }};"#
+    ))?;
+    let ir = make_test_ir_dependency(&proto, extra_feature)?;
+    generate_bindings_tokens_for_test(ir)
+}
+
+/// With the `strong_ordering_traits` feature, `operator<=>` returning `std::strong_ordering` also
+/// implements `Eq` and `Ord`.
+#[gtest]
+fn test_impl_spaceship_operator_strong_ordering_implements_eq_and_ord() -> Result<()> {
+    let rs_api = generate_spaceship_operator_bindings(
+        "std::strong_ordering",
+        Some("strong_ordering_traits"),
+    )?
+    .rs_api;
+    assert_rs_matches!(rs_api, quote! { impl PartialOrd for SomeStruct });
+    assert_rs_matches!(rs_api, quote! { impl Eq for SomeStruct {} });
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            impl Ord for SomeStruct {
+                #[inline(always)]
+                fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+                    match self.partial_cmp(other) {
+                        Some(ordering) => ordering,
+                        None => unreachable!(...),
+                    }
+                }
+            }
+        }
+    );
+    Ok(())
+}
+
+/// An alias of `std::strong_ordering` also implements `Eq` and `Ord`.
+#[gtest]
+fn test_impl_spaceship_operator_strong_ordering_alias_implements_eq_and_ord() -> Result<()> {
+    let rs_api = generate_spaceship_operator_bindings(
+        "StrongOrderingAlias",
+        Some("strong_ordering_traits"),
+    )?
+    .rs_api;
+    assert_rs_matches!(rs_api, quote! { impl PartialOrd for SomeStruct });
+    assert_rs_matches!(rs_api, quote! { impl Eq for SomeStruct {} });
+    assert_rs_matches!(rs_api, quote! { impl Ord for SomeStruct });
+    Ok(())
+}
+
+/// Without the `strong_ordering_traits` feature, `operator<=>` only implements `PartialOrd`.
+#[gtest]
+fn test_impl_spaceship_operator_strong_ordering_without_feature() -> Result<()> {
+    let rs_api = generate_spaceship_operator_bindings("std::strong_ordering", None)?.rs_api;
+    assert_rs_matches!(rs_api, quote! { impl PartialOrd for SomeStruct });
+    assert_rs_not_matches!(rs_api, quote! { impl Eq });
+    assert_rs_not_matches!(rs_api, quote! { impl Ord });
+    Ok(())
+}
+
+/// `operator<=>` returning `std::weak_ordering` doesn't implement `Eq` nor `Ord`.
+#[gtest]
+fn test_impl_spaceship_operator_weak_ordering_does_not_implement_eq_nor_ord() -> Result<()> {
+    let rs_api =
+        generate_spaceship_operator_bindings("std::weak_ordering", Some("strong_ordering_traits"))?
+            .rs_api;
+    assert_rs_matches!(rs_api, quote! { impl PartialOrd for SomeStruct });
+    assert_rs_not_matches!(rs_api, quote! { impl Eq });
+    assert_rs_not_matches!(rs_api, quote! { impl Ord });
+    Ok(())
+}
+
+#[gtest]
+fn test_impl_spaceship_operator() -> Result<()> {
+    let proto = ir_proto_from_cc(&format!(
+        r#"#pragma clang lifetime_elision
+        {FAKE_COMPARE_HEADER}
+        struct SomeStruct final {{
+            bool operator==(const SomeStruct& other) const;
+            std::strong_ordering operator<=>(const SomeStruct& other) const;
+            int i;
+        }};"#
+    ))?;
+
+    let ir = make_test_ir(&proto)?;
+    let BindingsTokens { rs_api, rs_api_impl } = generate_bindings_tokens_for_test(ir)?;
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            impl PartialOrd for SomeStruct {
+                #[inline(always)]
+                fn partial_cmp<'a, 'b>(&'a self, other: &'b Self) -> Option<core::cmp::Ordering> {
+                    unsafe {
+                        match crate::detail::...(self, other) {
+                            -1 => Some(core::cmp::Ordering::Less),
+                            0 => Some(core::cmp::Ordering::Equal),
+                            1 => Some(core::cmp::Ordering::Greater),
+                            _ => None,
+                        }
+                    }
+                }
+            }
+        }
+    );
+    assert_rs_not_matches!(rs_api, quote! { fn lt });
+    assert_cc_matches!(
+        rs_api_impl,
+        quote! {
+            extern "C" signed char ...(struct SomeStruct const * __this, struct SomeStruct const * other) {
+                return [](auto __crubit_ordering) -> signed char {
+                    if (__crubit_ordering < 0) return -1;
+                    if (__crubit_ordering == 0) return 0;
+                    if (__crubit_ordering > 0) return 1;
+                    return 2;
+                }(__this->operator<=>(*other));
+            }
+        }
+    );
+    Ok(())
+}
+
+/// If the C++ importer captures the source text of `operator<=>` (e.g. for `carcinize`), then the
+/// body of `operator<=>` is copied into `inline_cpp!`, instead of calling a thunk in `rs_api_impl`.
+/// This code path generates both the C++ call and the Rust function body separately from the
+/// thunk path (e.g. it doesn't use `generate_func_body`), so it needs separate coverage for the
+/// encoding (in C++) and decoding (in Rust) of the comparison result.
+#[gtest]
+fn test_impl_spaceship_operator_with_inline_cpp() -> Result<()> {
+    let rs_api = generate_bindings_tokens_from_cc_with_inline_cpp(&format!(
+        r#"{FAKE_COMPARE_HEADER}
+        struct SomeStruct final {{
+            bool operator==(const SomeStruct& other) const {{ return i == other.i; }}
+            std::strong_ordering operator<=>(const SomeStruct& other) const {{
+                return std::strong_ordering{{0}};
+            }}
+            int i;
+        }};"#
+    ))?
+    .rs_api;
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            match unsafe {
+                (::inline_cpp_macro::inline_cpp! {
+                    (struct SomeStruct const* __this, struct SomeStruct const* __other)
+                        -> signed char {
+                      auto&& other = *__other;
+                      {
+                        return [](auto __crubit_ordering) -> signed char {
+                          if (__crubit_ordering < 0) return -1;
+                          if (__crubit_ordering == 0) return 0;
+                          if (__crubit_ordering > 0) return 1;
+                          return 2;
+                        }(([&]() { return std::strong_ordering{0}; })());
+                      }
+                    }
+                })(...)
+            } {
+                -1 => Some(core::cmp::Ordering::Less),
+                0 => Some(core::cmp::Ordering::Equal),
+                1 => Some(core::cmp::Ordering::Greater),
+                _ => None,
+            }
+        }
+    );
+    Ok(())
+}
+
+/// A renamed `operator<=>` is bound like any other function: it doesn't implement `PartialOrd`,
+/// and its thunk doesn't encode the result.
+#[gtest]
+fn test_renamed_spaceship_operator() -> Result<()> {
+    let proto = ir_proto_from_cc(&format!(
+        r#"#pragma clang lifetime_elision
+        {FAKE_COMPARE_HEADER}
+        struct SomeStruct final {{
+            bool operator==(const SomeStruct& other) const;
+            [[clang::annotate("crubit_rust_name", "compare")]]
+            std::strong_ordering operator<=>(const SomeStruct& other) const;
+            int i;
+        }};"#
+    ))?;
+
+    let ir = make_test_ir(&proto)?;
+    let BindingsTokens { rs_api, rs_api_impl } = generate_bindings_tokens_for_test(ir)?;
+    assert_rs_not_matches!(rs_api, quote! { impl PartialOrd });
+    assert_rs_matches!(rs_api, quote! { pub fn compare });
+    assert_cc_matches!(rs_api_impl, quote! { __this->operator<=>(*other) });
+    assert_cc_not_matches!(rs_api_impl, quote! { __crubit_ordering });
+    Ok(())
+}
+
+/// `operator<=>` is preferred over the relational operators.
+#[gtest]
+fn test_impl_spaceship_operator_preferred_over_lt() -> Result<()> {
+    let proto = ir_proto_from_cc(&format!(
+        r#"#pragma clang lifetime_elision
+        {FAKE_COMPARE_HEADER}
+        struct SomeStruct final {{
+            bool operator==(const SomeStruct& other) const;
+            std::strong_ordering operator<=>(const SomeStruct& other) const;
+            bool operator<(const SomeStruct& other) const;
+            int i;
+        }};"#
+    ))?;
+
+    let ir = make_test_ir(&proto)?;
+    let rs_api = generate_bindings_tokens_for_test(ir)?.rs_api;
+    assert_rs_matches!(rs_api, quote! { impl PartialOrd for SomeStruct });
+    assert_rs_not_matches!(rs_api, quote! { fn lt });
+    expect_that!(
+        rs_api.to_string(),
+        contains_substring(
+            "Bindings for operator< were omitted because PartialOrd is already implemented via operator<=>"
+        )
+    );
+    Ok(())
+}
+
+/// `operator<=>` is only bound if it returns a comparison category type.
+#[gtest]
+fn test_impl_spaceship_operator_returning_int() -> Result<()> {
+    let proto = ir_proto_from_cc(
+        r#"#pragma clang lifetime_elision
+        struct SomeStruct final {
+            bool operator==(const SomeStruct& other) const;
+            int operator<=>(const SomeStruct& other) const;
+            int i;
+        };"#,
+    )?;
+
+    let ir = make_test_ir(&proto)?;
+    let rs_api = generate_bindings_tokens_for_test(ir)?.rs_api;
+    assert_rs_not_matches!(rs_api, quote! { impl PartialOrd });
+    expect_that!(
+        rs_api.to_string(),
+        contains_substring(
+            "operator<=> is only supported if it returns std::strong_ordering, std::weak_ordering, or std::partial_ordering"
+        )
+    );
+    Ok(())
+}
+
 /// When `operator<` is absent, `operator>` is the next most preferred relational operator and
 /// is bound in its place, while `<=` and `>=` defer to it.
 #[gtest]
@@ -2927,27 +3241,6 @@ fn test_unsafe_constructor_nonunpin() -> Result<()> {
 }
 
 #[gtest]
-fn test_function_using_error_type_by_value() -> Result<()> {
-    let BindingsTokens { rs_api, .. } = generate_bindings_tokens_from_cc(
-        r#"
-        struct __DunderName {};
-        void foo(__DunderName x);
-        "#,
-    )?;
-
-    assert_rs_matches!(
-        rs_api,
-        quote! {
-            #[diagnostic::on_unimplemented(
-                message = "binding generation for function failed\nCannot use an error type `__DunderName` by value:\n  Skipping generating bindings for '__DunderName' because it has a leading `__`"
-            )]
-            pub trait ... {}
-        }
-    );
-    Ok(())
-}
-
-#[gtest]
 fn test_thunkless_accessors_enabled() -> Result<()> {
     let proto = ir_proto_from_cc(
         r#"
@@ -3426,6 +3719,45 @@ fn test_thunkless_accessors_virtual() -> Result<()> {
 }
 
 #[gtest]
+fn test_thunkless_accessors_constructor() -> Result<()> {
+    let proto = ir_proto_from_cc(
+        r#"
+        class S {
+         public:
+          explicit S(int x) { x_ = x; }
+         private:
+          int x_;
+        };
+        class N {
+         public:
+          explicit N(int x) { x_ = x; }
+          ~N() {}
+         private:
+          int x_;
+        };
+        "#,
+    )?;
+    let ir = make_test_ir_dependency(&proto, Some("thunkless_accessors"))?;
+    let BindingsTokens { rs_api, rs_api_impl } = generate_bindings_tokens_for_test(ir)?;
+    // The bodies of these constructors have the same shape as a setter's, but a constructor
+    // initializes a new object rather than updating an existing one, so both keep their thunk.
+    assert_rs_matches!(rs_api, quote! { crate::detail::...(&raw mut tmp as *mut _, x); });
+    assert_rs_matches!(
+        rs_api,
+        quote! { crate::detail::...(__crubit_dest as *mut ::core::ffi::c_void, x); }
+    );
+    assert_cc_matches!(
+        rs_api_impl,
+        quote! { extern "C" void ...(class S* __this, int x) { crubit::construct_at(__this, x); } }
+    );
+    assert_cc_matches!(
+        rs_api_impl,
+        quote! { extern "C" void ...(class N* __this, int x) { crubit::construct_at(__this, x); } }
+    );
+    Ok(())
+}
+
+#[gtest]
 fn test_thunkless_accessors_underaligned_field() -> Result<()> {
     let proto = ir_proto_from_cc(
         r#"
@@ -3501,6 +3833,113 @@ fn test_thunkless_accessors_free_getter_receiver() -> Result<()> {
     assert_cc_matches!(rs_api_impl, quote! { by_value_x });
     // `x_` is at offset 8 within `D`, but at offset 0 within `B`.
     assert_cc_matches!(rs_api_impl, quote! { inherited_x });
+    Ok(())
+}
+
+#[gtest]
+fn test_thunkless_constructor_trivial() -> Result<()> {
+    let proto = ir_proto_from_cc(
+        r#"
+        struct Implicit { int x; const int* p; };
+        struct Defaulted { Defaulted() = default; int x; };
+        struct NotUnpin { ~NotUnpin() {} int x; };
+        template <typename T> struct Template { T x; };
+        using TemplateInt = Template<int>;
+        "#,
+    )?;
+    let ir = make_test_ir_dependency(&proto, Some("thunkless_accessors"))?;
+    let BindingsTokens { rs_api, rs_api_impl } = generate_bindings_tokens_for_test(ir)?;
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            impl Default for Implicit {
+                #[inline(always)]
+                fn default() -> Self {
+                    unsafe { ::core::mem::MaybeUninit::<Self>::zeroed().assume_init() }
+                }
+            }
+        }
+    );
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            impl Default for Defaulted {
+                #[inline(always)]
+                fn default() -> Self {
+                    unsafe { ::core::mem::MaybeUninit::<Self>::zeroed().assume_init() }
+                }
+            }
+        }
+    );
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            unsafe {
+                ::ctor::FnCtor::new(move |__crubit_dest: *mut Self| {
+                    __crubit_dest.write_bytes(0, 1);
+                })
+            }
+        }
+    );
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            impl Default for __CcTemplateInst8TemplateIiE {
+                #[inline(always)]
+                fn default() -> Self {
+                    unsafe { ::core::mem::MaybeUninit::<Self>::zeroed().assume_init() }
+                }
+            }
+        }
+    );
+    // None of the default constructors needs a thunk.
+    assert_cc_not_matches!(rs_api_impl, quote! { crubit::construct_at(__this) });
+    Ok(())
+}
+
+#[gtest]
+fn test_thunkless_constructor_nontrivial() -> Result<()> {
+    let proto = ir_proto_from_cc(
+        r#"
+        struct WithInitializer { int x = 1; };
+        struct UserProvided { UserProvided() {} int x; };
+        struct Polymorphic { virtual ~Polymorphic(); int x; };
+        "#,
+    )?;
+    let ir = make_test_ir_dependency(&proto, Some("thunkless_accessors"))?;
+    let BindingsTokens { rs_api, rs_api_impl } = generate_bindings_tokens_for_test(ir)?;
+    assert_rs_not_matches!(rs_api, quote! { zeroed().assume_init() });
+    assert_rs_not_matches!(rs_api, quote! { write_bytes });
+    assert_cc_matches!(
+        rs_api_impl,
+        quote! {
+            extern "C" void ...(struct WithInitializer* __this) { crubit::construct_at(__this); }
+        }
+    );
+    assert_cc_matches!(
+        rs_api_impl,
+        quote! {
+            extern "C" void ...(struct UserProvided* __this) { crubit::construct_at(__this); }
+        }
+    );
+    assert_cc_matches!(
+        rs_api_impl,
+        quote! {
+            extern "C" void ...(struct Polymorphic* __this) { crubit::construct_at(__this); }
+        }
+    );
+    Ok(())
+}
+
+#[gtest]
+fn test_thunkless_constructor_disabled() -> Result<()> {
+    let BindingsTokens { rs_api, rs_api_impl } =
+        generate_bindings_tokens_from_cc("struct S { int x; };")?;
+    assert_rs_not_matches!(rs_api, quote! { zeroed().assume_init() });
+    assert_cc_matches!(
+        rs_api_impl,
+        quote! { extern "C" void ...(struct S* __this) { crubit::construct_at(__this); } }
+    );
     Ok(())
 }
 
@@ -3917,5 +4356,106 @@ fn test_function_with_unsafe_template_param_existing_rust_type() -> Result<()> {
         "The caller must ensure that the following unsafe arguments are not misused by the function"
     ));
     assert!(doc.contains("`c`: template parameter is unsafe: raw pointer"));
+    Ok(())
+}
+
+#[gtest]
+fn test_std_pair_preserves_explicit_lifetime_on_element() -> Result<()> {
+    let BindingsTokens { rs_api, .. } = generate_bindings_tokens_from_assumed_lifetimes_cc(
+        r#"
+        namespace std {
+            template <typename T1, typename T2>
+            struct pair {
+                T1 first;
+                T2 second;
+            };
+        }
+
+        struct LIFETIME_PARAMS("a") View final {
+            int value;
+        };
+
+        std::pair<int* _Nonnull, View $a> P1(int& $a x);
+        void P2(std::pair<int* _Nonnull, View $a> p);
+        void P3(std::pair<int*, View $a> p);
+        "#,
+    )?;
+
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            fn P1<'a>(x: &'a mut ::ffi_11::c_int) -> (*mut ::ffi_11::c_int, crate::View<'a>)
+        }
+    );
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            fn P2<'a>(p: (*mut ::ffi_11::c_int, crate::View<'a>))
+        }
+    );
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            fn P3<'a>(p: (*mut ::ffi_11::c_int, crate::View<'a>))
+        }
+    );
+    Ok(())
+}
+
+#[gtest]
+fn test_c_array_function_decay_and_omission() -> Result<()> {
+    let proto = ir_proto_from_cc(
+        r#"
+        using Arr = int[4];
+        void take_decayed(int x[4]);
+        void take_decayed_const(const int x[4]);
+        void take_decayed_alias(Arr x);
+
+        void take_array_ref(int (&x)[4]);
+        void take_const_array_ref(const int (&x)[4]);
+        void take_array_ptr(int (*x)[4]);
+        void take_multidim_param(int x[2][4]);
+        void take_alias_ref(Arr& x);
+        void take_alias_ptr(Arr* x);
+        Arr* return_array_ptr();
+        void take_fn_ptr_with_array(void (*cb)(int (&)[4]));
+        "#,
+    )?;
+    let ir = make_test_ir(&proto)?;
+    let BindingsTokens { rs_api, .. } = generate_bindings_tokens_for_test(ir)?;
+
+    // 1D C++ array value parameters decay to raw pointers and remain supported.
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            #[inline(always)]
+            pub unsafe fn take_decayed(x: *mut ::ffi_11::c_int) { ... }
+        }
+    );
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            #[inline(always)]
+            pub unsafe fn take_decayed_const(x: *const ::ffi_11::c_int) { ... }
+        }
+    );
+    assert_rs_matches!(
+        rs_api,
+        quote! {
+            #[inline(always)]
+            pub unsafe fn take_decayed_alias(x: *mut ::ffi_11::c_int) { ... }
+        }
+    );
+
+    // Non-decayed array references, pointers to arrays, multidimensional array parameters,
+    // and function pointers containing array types are not supported and are omitted.
+    assert_rs_not_matches!(rs_api, quote! { fn take_array_ref });
+    assert_rs_not_matches!(rs_api, quote! { fn take_const_array_ref });
+    assert_rs_not_matches!(rs_api, quote! { fn take_array_ptr });
+    assert_rs_not_matches!(rs_api, quote! { fn take_multidim_param });
+    assert_rs_not_matches!(rs_api, quote! { fn take_alias_ref });
+    assert_rs_not_matches!(rs_api, quote! { fn take_alias_ptr });
+    assert_rs_not_matches!(rs_api, quote! { fn return_array_ptr });
+    assert_rs_not_matches!(rs_api, quote! { fn take_fn_ptr_with_array });
     Ok(())
 }

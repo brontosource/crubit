@@ -1,3 +1,4 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load(
     "@rules_rust//rust:defs.bzl",
     "rust_binary",
@@ -9,13 +10,19 @@ load("//common:crubit_wrapper_macros_oss.bzl", "crubit_rust_test")
 
 package(default_applicable_licenses = ["//:license"])
 
+bzl_library(
+    name = "extract_cpp_bzl",
+    srcs = ["extract_cpp.bzl"],
+    visibility = ["//:__subpackages__"],
+)
+
 rust_library(
     name = "parse_inline_cpp_macros",
     srcs = ["parse_inline_cpp_macros.rs"],
     edition = "2024",
     visibility = ["//visibility:public"],
     deps = [
-        "@crate_index//:ra_ap_rustc_lexer",  # v0_165
+        "@crate_index//:ra-ap-rustc_lexer",  # v0_165
     ],
 )
 
@@ -38,7 +45,7 @@ rust_binary(
         ":inline_cpp_utils",
         ":parse_inline_cpp_macros",
         "@crate_index//:clap",  # v4
-        "@crate_index//:ra_ap_rustc_lexer",  # v0_165
+        "@crate_index//:ra-ap-rustc_lexer",  # v0_165
     ],
 )
 
@@ -77,7 +84,7 @@ rust_binary(
         "//common:external_binaries",
         "@crate_index//:anyhow",  # v1
         "@crate_index//:clap",  # v4
-        "@crate_index//:ra_ap_rustc_lexer",  # v0_165
+        "@crate_index//:ra-ap-rustc_lexer",  # v0_165
     ],
 )
 

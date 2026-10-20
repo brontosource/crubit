@@ -24,9 +24,6 @@ rust_library(
     name = "enums",
     testonly = 1,
     srcs = ["enums.rs"],
-    aspect_hints = [
-        "//features:experimental",
-    ],
     edition = "2024",
     proc_macro_deps = [
         "//support:crubit_annotate",
@@ -44,6 +41,8 @@ golden_test(
         "macos",
     ],
     rust_library = "enums",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 cpp_api_from_rust(
@@ -59,6 +58,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":enums_cc_api",
         "@googletest//:gtest_main",
@@ -85,6 +86,8 @@ golden_test(
         "macos",
     ],
     rust_library = "cpp_enums",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 cpp_api_from_rust(
@@ -100,6 +103,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":cpp_enums_cc_api",
         "@googletest//:gtest_main",
@@ -128,6 +133,8 @@ golden_test(
         "macos",
     ],
     rust_library = "option",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 cpp_api_from_rust(
@@ -143,6 +150,9 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): The generated rs_std.h declares `stdin()`, `stdout()` and
+    # `stderr()`, which the Windows UCRT defines as macros.
+    tags = ["no_windows"],
     deps = [
         ":option_cc_api",
         "//support/rs_std",
@@ -172,6 +182,8 @@ golden_test(
         "macos",
     ],
     rust_library = "result",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 cpp_api_from_rust(
@@ -187,6 +199,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":result_cc_api",
         "//support:movable",

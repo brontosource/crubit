@@ -7,7 +7,7 @@ package(default_applicable_licenses = ["//:license"])
 crubit_test_cc_library(
     name = "forward_declaration",
     hdrs = ["forward_declaration.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
 )
 
 rust_api_from_cpp(
@@ -20,7 +20,7 @@ crubit_test_cc_library(
     hdrs = [
         "definition.h",
     ],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     deps = [
         ":forward_declaration",
     ],
@@ -37,6 +37,8 @@ crubit_cc_test(
         "test.cc",
     ],
     platforms = ["android"],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":definition",
         ":forward_declaration",

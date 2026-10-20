@@ -7,7 +7,6 @@
 
 #include <set>
 
-#include "absl/base/attributes.h"
 namespace crubit::has_bindings {
 
 inline void crubit_void_function_non_extern_c() {}
@@ -20,7 +19,8 @@ struct Struct {
 
 using StructAlias = Struct;
 
-struct ABSL_ATTRIBUTE_TRIVIAL_ABI NontrivialStruct {
+// Not ABSL_ATTRIBUTE_TRIVIAL_ABI: open-source Abseil defines it as empty.
+struct [[clang::trivial_abi]] NontrivialStruct {
   int* x;
   ~NontrivialStruct() {
     // this can do anything, but we'll do something silly for the sake of

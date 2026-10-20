@@ -45,6 +45,9 @@ cc_library(
 rust_api_from_cpp(
     name = "my_proto_api_rust",
     cpp_target = ":my_proto_api",
+    # The generated bindings use `ProtoMessageRustBridge`, which only Google's internal protobuf Rust
+    # codegen provides.
+    tags = ["manual"],
 )
 
 golden_test(
@@ -63,4 +66,7 @@ crubit_rust_test(
         "//support:forward_declare",
         "@crate_index//:googletest",
     ],
+    # The generated bindings use `ProtoMessageRustBridge`, which only Google's internal protobuf Rust
+    # codegen provides.
+    tags = ["manual"],
 )

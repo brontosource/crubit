@@ -152,7 +152,7 @@ fn generate_type_alias<'a>(
     //
     // Since rs_type_kind() can succeed even if this alias is unsupported (it is "seen through"),
     // we only do so after rs_type_kind() fails.
-    let Ok(rs_type_kind) = db.rs_type_kind(type_alias.into()) else {
+    let Ok(_rs_type_kind) = db.rs_type_kind(type_alias.into()) else {
         // Return the un-hidden raw error from has_bindings().
         let Err(e) = db.has_bindings(ir::Item::TypeAlias(raw_type_alias)) else {
             unreachable!(
@@ -188,13 +188,10 @@ fn generate_type_alias<'a>(
         doc_comment: generate_doc_comment(
             type_alias.doc_comment(),
             None,
-            Some(type_alias.source_loc()),
+            type_alias.decl_loc(),
             db.is_golden_test(),
             db.kythe_annotations(),
         ),
-        visibility: db
-            .type_visibility(type_alias.owning_target(), rs_type_kind)
-            .unwrap_or_default(),
         ident: make_rs_ident(type_alias.rs_name().as_str()),
         underlying_type: underlying_type.to_token_stream(db),
         underlying_nested_module_path,
@@ -338,7 +335,6 @@ fn generate_global_var(db: &BindingsGenerator, var: &GlobalVar) -> Result<ApiSni
                 is_mut: !var.type_().is_const(),
                 ident: make_rs_ident(var.rs_name().as_str()),
                 type_tokens: type_.to_token_stream(db),
-                visibility: db.type_visibility(var.owning_target(), type_).unwrap_or_default(),
                 deprecated_attr: var.deprecated().map(|s| DeprecatedAttr(Rc::from(s))),
             },
         )]),
@@ -535,7 +531,6 @@ pub fn new_database<'db>(
         generate_function::get_binding,
         generate_struct_and_union::collect_unqualified_member_functions,
         crubit_abi_type,
-        has_bindings::type_target_restriction,
         has_bindings::resolve_names,
         generate_function::mangled_name_counts,
         unsupported_item_errors,
@@ -593,6 +588,15 @@ pub fn generate_bindings_tokens(
                 else {
                     return None;
                 };
+
+                // Without the AnyInvocable support header, there is no `AnyInvocableAbi` or
+                // `RawAnyInvocable` to target, and `absl::AnyInvocable` would not get any
+                // bindings.
+                if matches!(callable.backing_type, BackingType::AnyInvocable { .. })
+                    && generate_dyn_callable::CRUBIT_ANY_INVOCABLE_SUPPORT_HEADER.is_none()
+                {
+                    return None;
+                }
 
                 // The parameters shall be named `param_0`, `param_1`, etc.
                 // These names can be reused across different callables, so we reuse the same vec
@@ -665,6 +669,17 @@ pub fn generate_bindings_tokens(
         (has_callables || has_rs_alloc)
             .then(|| quote! { extern crate alloc; __NEWLINE__ __NEWLINE__  })
     };
+
+    // Handwritten `srcs` may call `inline_cpp!`, which expands to
+    // `inline_cpp_generated_bindings::<thunk>`. With `rust_api_from_cpp(embedded_cpp = True)`, the
+    // thunks are generated into this crate, so make that path resolve here.
+    //
+    // TODO: `--carcinize` emits `inline_cpp!` into the generated bindings themselves, and
+    // `extract_cpp` only scans `srcs`. A carcinize target that also has `srcs` gets
+    // `CRUBIT_TARGET` set, so those calls fail to compile instead of expanding to `unreachable!()`.
+    let extern_crate_self = ir.items().any(|item| matches!(item, Item::UseMod(_))).then(
+        || quote! { extern crate self as inline_cpp_generated_bindings; __NEWLINE__ __NEWLINE__ },
+    );
 
     // when we go through the main_api, we want to go through one at a time.
     // if the parent is none, we're responsible.
@@ -778,6 +793,8 @@ pub fn generate_bindings_tokens(
 
             #extern_crate_alloc
 
+            #extern_crate_self
+
             #( #reexports __NEWLINE__ )*
 
             #main_api
@@ -803,9 +820,8 @@ fn rs_type_kind_safety<'a>(
         RsTypeKind::Pointer { .. } => Some(UnsafeReason(intern!(db.interner(), "raw pointer"))),
         RsTypeKind::Reference { referent: t, .. }
         | RsTypeKind::RvalueReference { referent: t, .. }
-        | RsTypeKind::TypeAlias { underlying_type: t, .. } => {
-            db.rs_type_kind_safety(t.as_ref().clone())
-        }
+        | RsTypeKind::TypeAlias { underlying_type: t, .. }
+        | RsTypeKind::CArray { element_type: t, .. } => db.rs_type_kind_safety(t.as_ref().clone()),
         RsTypeKind::FuncPtr { return_type, param_types, .. } => {
             callable_safety(db, &param_types, &return_type)
         }
@@ -1085,11 +1101,16 @@ fn unsupported_item_errors<'db>(
     item.errors()
         .iter()
         .map(|e| {
-            error_report::FormattedError::new(
+            let error: Error = error_report::FormattedError::new(
                 e.fmt.to_string().into(),
                 e.message.to_string().into(),
             )
-            .into()
+            .into();
+            // Keep displaying the message, but report the cause it was formatted from.
+            match &e.cause {
+                Some(cause) => error_report::because(error, cause.clone()),
+                None => error,
+            }
         })
         .collect()
 }
@@ -1311,9 +1332,10 @@ fn crubit_abi_type<'a>(
     rs_type_kind: RsTypeKind<'a>,
 ) -> Result<CrubitAbiType> {
     match rs_type_kind {
-        RsTypeKind::Error { symbol, error, .. } => {
-            bail!("Type '{symbol}' has an error and cannot be bridged: {error}")
-        }
+        RsTypeKind::Error { symbol, error, .. } => Err(error_report::because(
+            error_report::anyhow!("Type '{symbol}' has an error and cannot be bridged: {error}"),
+            error.clone(),
+        )),
         RsTypeKind::TypeAlias { underlying_type, .. } => {
             // We don't actually _have_ to expand the type alias here
             db.crubit_abi_type(underlying_type.as_ref().clone())
@@ -1357,6 +1379,9 @@ fn crubit_abi_type<'a>(
             )?;
 
             Ok(CrubitAbiType::Transmute { rust_type: rs_type_kind.to_token_stream(db), cpp_type })
+        }
+        RsTypeKind::CArray { .. } => {
+            bail!("C-style array types cannot be bridged by value (b/575922365)")
         }
         RsTypeKind::Primitive(primitive) => Ok(match primitive {
             Primitive::Bool => CrubitAbiType::transmute("bool", "bool"),

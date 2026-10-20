@@ -36,11 +36,15 @@ golden_test(
     basename = "rust_api",
     golden_h = "rust_api_cc_api.h",
     rust_library = "rust_api",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 crubit_cc_test(
     name = "type_identity_test",
     srcs = ["type_identity_test.cc"],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":rust_api_cc_api",
     ],

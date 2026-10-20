@@ -11,7 +11,7 @@ crubit_test_cc_library(
     name = "add",
     srcs = ["add.cc"],
     hdrs = ["add.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
 )
 
 rust_api_from_cpp(
@@ -33,7 +33,7 @@ crubit_test_cc_library(
     name = "add_assign",
     srcs = ["add_assign.cc"],
     hdrs = ["add_assign.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
 )
 
 rust_api_from_cpp(
@@ -55,7 +55,7 @@ crubit_rust_test(
 crubit_test_cc_library(
     name = "rename",
     hdrs = ["rename.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     deps = ["//support:annotations"],
 )
 
@@ -77,7 +77,7 @@ crubit_rust_test(
 crubit_test_cc_library(
     name = "foreign_lib",
     hdrs = ["foreign_lib.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
 )
 
 rust_api_from_cpp(
@@ -89,7 +89,7 @@ crubit_test_cc_library(
     name = "operators",
     srcs = ["operators.cc"],
     hdrs = ["operators.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     deps = [":foreign_lib"],
 )
 
@@ -110,6 +110,27 @@ crubit_rust_test(
     ],
 )
 
+crubit_test_cc_library(
+    name = "spaceship",
+    hdrs = ["spaceship.h"],
+    aspect_hints = ["//features:strong_ordering_traits"],
+)
+
+rust_api_from_cpp(
+    name = "spaceship_rust",
+    cpp_target = ":spaceship",
+)
+
+crubit_rust_test(
+    name = "spaceship_test",
+    srcs = ["spaceship_test.rs"],
+    deps = [
+        ":spaceship_rust",
+        "@crate_index//:googletest",
+        "@crate_index//:static_assertions",  # v1
+    ],
+)
+
 # Crubit is intentionally not enabled for this library.
 cc_library(
     name = "operator_mixins",
@@ -119,7 +140,7 @@ cc_library(
 crubit_test_cc_library(
     name = "inherited_operators",
     hdrs = ["inherited_operators.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:inherited_friend_operators"],
     deps = [":operator_mixins"],
 )
 

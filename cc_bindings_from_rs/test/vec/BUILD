@@ -17,9 +17,6 @@ package(default_applicable_licenses = ["//:license"])
 rust_library(
     name = "vec",
     srcs = ["vec.rs"],
-    aspect_hints = [
-        "//features:experimental",
-    ],
     edition = "2024",
     proc_macro_deps = [
         "//support:crubit_annotate",
@@ -37,6 +34,8 @@ golden_test(
         "macos",
     ],
     rust_library = "vec",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 cpp_api_from_rust(
@@ -52,6 +51,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":vec_cc_api",
         "//support/rs_std:rs_alloc",

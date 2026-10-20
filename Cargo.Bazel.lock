@@ -1,5 +1,5 @@
 {
-  "checksum": "2f4b4540b4f3e3562a8590247e8a106c865d9a89bd0bea2bea15a9e9e26c553d",
+  "checksum": "b87db0e1817ff1f05289a114d8581e073f0dba32de7a94645535d505e63bfd52",
   "crates": {
     "aho-corasick 1.1.5": {
       "name": "aho-corasick",
@@ -32,6 +32,7 @@
         ],
         "crate_features": {
           "common": [
+            "default",
             "perf-literal",
             "std"
           ],
@@ -670,6 +671,51 @@
       ],
       "license_file": "LICENSE-APACHE"
     },
+    "bumpalo 3.20.3": {
+      "name": "bumpalo",
+      "version": "3.20.3",
+      "package_url": "https://github.com/fitzgen/bumpalo",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/bumpalo/3.20.3/download",
+          "sha256": "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "bumpalo",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "bumpalo",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": {
+          "common": [
+            "default"
+          ],
+          "selects": {}
+        },
+        "edition": "2021",
+        "version": "3.20.3"
+      },
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
     "camino 1.2.5": {
       "name": "camino",
       "version": "1.2.5",
@@ -1037,6 +1083,62 @@
       "license_ids": [],
       "license_file": "../../../LICENSE"
     },
+    "cc_bindings_from_rs_avoid_colliding_types 0.0.0": {
+      "name": "cc_bindings_from_rs_avoid_colliding_types",
+      "version": "0.0.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_bindings_from_rs_avoid_colliding_types",
+            "crate_root": "../../../../cc_bindings_from_rs/generate_bindings/avoid_colliding_types.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cc_bindings_from_rs_avoid_colliding_types",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "flagset 0.4.7",
+              "target": "flagset"
+            },
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.0.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../../LICENSE"
+    },
     "cc_bindings_from_rs_cmdline 0.0.0": {
       "name": "cc_bindings_from_rs_cmdline",
       "version": "0.0.0",
@@ -1251,6 +1353,62 @@
       "license_ids": [],
       "license_file": "../../../../../LICENSE"
     },
+    "cc_bindings_from_rs_format_type 0.0.0": {
+      "name": "cc_bindings_from_rs_format_type",
+      "version": "0.0.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_bindings_from_rs_format_type",
+            "crate_root": "../../../../cc_bindings_from_rs/generate_bindings/format_type.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cc_bindings_from_rs_format_type",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "flagset 0.4.7",
+              "target": "flagset"
+            },
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.0.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../../LICENSE"
+    },
     "cc_bindings_from_rs_generate_bindings 0.0.0": {
       "name": "cc_bindings_from_rs_generate_bindings",
       "version": "0.0.0",
@@ -1271,6 +1429,519 @@
         }
       ],
       "library_target_name": "cc_bindings_from_rs_generate_bindings",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "flagset 0.4.7",
+              "target": "flagset"
+            },
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "deps_dev": {
+          "common": [
+            {
+              "id": "googletest 0.14.3",
+              "target": "googletest"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.0.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../../LICENSE"
+    },
+    "cc_bindings_from_rs_generate_comment 0.0.0": {
+      "name": "cc_bindings_from_rs_generate_comment",
+      "version": "0.0.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_bindings_from_rs_generate_comment",
+            "crate_root": "../../../../cc_bindings_from_rs/generate_bindings/generate_comment.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cc_bindings_from_rs_generate_comment",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "flagset 0.4.7",
+              "target": "flagset"
+            },
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.0.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../../LICENSE"
+    },
+    "cc_bindings_from_rs_generate_ctor 0.0.0": {
+      "name": "cc_bindings_from_rs_generate_ctor",
+      "version": "0.0.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_bindings_from_rs_generate_ctor",
+            "crate_root": "../../../../cc_bindings_from_rs/generate_bindings/generate_ctor.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cc_bindings_from_rs_generate_ctor",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "flagset 0.4.7",
+              "target": "flagset"
+            },
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.0.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../../LICENSE"
+    },
+    "cc_bindings_from_rs_generate_enum 0.0.0": {
+      "name": "cc_bindings_from_rs_generate_enum",
+      "version": "0.0.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_bindings_from_rs_generate_enum",
+            "crate_root": "../../../../cc_bindings_from_rs/generate_bindings/generate_enum.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cc_bindings_from_rs_generate_enum",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "flagset 0.4.7",
+              "target": "flagset"
+            },
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.0.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../../LICENSE"
+    },
+    "cc_bindings_from_rs_generate_function 0.0.0": {
+      "name": "cc_bindings_from_rs_generate_function",
+      "version": "0.0.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_bindings_from_rs_generate_function",
+            "crate_root": "../../../../cc_bindings_from_rs/generate_bindings/generate_function.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cc_bindings_from_rs_generate_function",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "flagset 0.4.7",
+              "target": "flagset"
+            },
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.0.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../../LICENSE"
+    },
+    "cc_bindings_from_rs_generate_function_thunk 0.0.0": {
+      "name": "cc_bindings_from_rs_generate_function_thunk",
+      "version": "0.0.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_bindings_from_rs_generate_function_thunk",
+            "crate_root": "../../../../cc_bindings_from_rs/generate_bindings/generate_function_thunk.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cc_bindings_from_rs_generate_function_thunk",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "flagset 0.4.7",
+              "target": "flagset"
+            },
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.0.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../../LICENSE"
+    },
+    "cc_bindings_from_rs_generate_struct_and_union 0.0.0": {
+      "name": "cc_bindings_from_rs_generate_struct_and_union",
+      "version": "0.0.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_bindings_from_rs_generate_struct_and_union",
+            "crate_root": "../../../../cc_bindings_from_rs/generate_bindings/generate_struct_and_union.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cc_bindings_from_rs_generate_struct_and_union",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "flagset 0.4.7",
+              "target": "flagset"
+            },
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.0.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../../LICENSE"
+    },
+    "cc_bindings_from_rs_generate_template_specialization 0.0.0": {
+      "name": "cc_bindings_from_rs_generate_template_specialization",
+      "version": "0.0.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_bindings_from_rs_generate_template_specialization",
+            "crate_root": "../../../../cc_bindings_from_rs/generate_bindings/generate_template_specialization.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cc_bindings_from_rs_generate_template_specialization",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "flagset 0.4.7",
+              "target": "flagset"
+            },
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.0.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../../LICENSE"
+    },
+    "cc_bindings_from_rs_generate_unsupported 0.0.0": {
+      "name": "cc_bindings_from_rs_generate_unsupported",
+      "version": "0.0.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_bindings_from_rs_generate_unsupported",
+            "crate_root": "../../../../cc_bindings_from_rs/generate_bindings/generate_unsupported.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cc_bindings_from_rs_generate_unsupported",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "flagset 0.4.7",
+              "target": "flagset"
+            },
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 2.0.119",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.0.0"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": "../../../../LICENSE"
+    },
+    "cc_bindings_from_rs_get_generic_args 0.0.0": {
+      "name": "cc_bindings_from_rs_get_generic_args",
+      "version": "0.0.0",
+      "package_url": "https://github.com/google/crubit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_bindings_from_rs_get_generic_args",
+            "crate_root": "../../../../cc_bindings_from_rs/generate_bindings/get_generic_args.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cc_bindings_from_rs_get_generic_args",
       "common_attrs": {
         "compile_data_glob": [
           "**"
@@ -1331,6 +2002,15 @@
         "compile_data_glob": [
           "**"
         ],
+        "deps": {
+          "common": [
+            {
+              "id": "itertools 0.13.0",
+              "target": "itertools"
+            }
+          ],
+          "selects": {}
+        },
         "edition": "2024",
         "version": "0.0.0"
       },
@@ -2053,7 +2733,7 @@
               "target": "syn"
             },
             {
-              "id": "unicode-ident 1.0.26",
+              "id": "unicode-ident 1.0.24",
               "target": "unicode_ident"
             }
           ],
@@ -2078,6 +2758,53 @@
       "license": null,
       "license_ids": [],
       "license_file": "../../../LICENSE"
+    },
+    "codespan-reporting 0.13.1": {
+      "name": "codespan-reporting",
+      "version": "0.13.1",
+      "package_url": "https://github.com/brendanzab/codespan",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/codespan-reporting/0.13.1/download",
+          "sha256": "af491d569909a7e4dee0ad7db7f5341fef5c614d5b8ec8cf765732aba3cff681"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "codespan_reporting",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "codespan_reporting",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "unicode-width 0.2.2",
+              "target": "unicode_width"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2021",
+        "version": "0.13.1"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "license_file": "LICENSE"
     },
     "colorchoice 1.0.5": {
       "name": "colorchoice",
@@ -2440,6 +3167,330 @@
       "license_ids": [],
       "license_file": "../../LICENSE"
     },
+    "cxx 1.0.205": {
+      "name": "cxx",
+      "version": "1.0.205",
+      "package_url": "https://github.com/dtolnay/cxx",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/cxx/1.0.205/download",
+          "sha256": "c8a02bfeba9074b2bbb39492c9b0908ec854f455a3cccdcde7a1de55e2315e40"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cxx",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cxx",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": {
+          "common": [
+            "alloc",
+            "default",
+            "std"
+          ],
+          "selects": {}
+        },
+        "deps": {
+          "common": [
+            {
+              "id": "foldhash 0.2.0",
+              "target": "foldhash"
+            },
+            {
+              "id": "link-cplusplus 1.0.12",
+              "target": "link_cplusplus"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "proc_macro_deps": {
+          "common": [
+            {
+              "id": "cxxbridge-macro 1.0.205",
+              "target": "cxxbridge_macro"
+            }
+          ],
+          "selects": {}
+        },
+        "extra_link_deps": {
+          "common": [
+            ":cxx_cc"
+          ],
+          "selects": {}
+        },
+        "version": "1.0.205"
+      },
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE",
+      "additive_build_file_content": "load(\"@rules_cc//cc:defs.bzl\", \"cc_library\")\ncc_library(\n    name = \"cxx_cc\",\n    srcs = [\"src/cxx.cc\"],\n    hdrs = [\"include/cxx.h\"],\n    include_prefix = \"rust\",\n    includes = [\"include\"],\n    linkstatic = True,\n    strip_include_prefix = \"include\",\n    visibility = [\"//visibility:public\"],\n)\n",
+      "extra_aliased_targets": {
+        "cxx_cc": "cxx_cc"
+      }
+    },
+    "cxx-build 1.0.205": {
+      "name": "cxx-build",
+      "version": "1.0.205",
+      "package_url": "https://github.com/dtolnay/cxx",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/cxx-build/1.0.205/download",
+          "sha256": "bbc2ac76997619d2d888b58ad79488f1c835de41ca4dd3dd7082acf4ecb0a50f"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cxx_build",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cxx_build",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "cc 1.4.4",
+              "target": "cc"
+            },
+            {
+              "id": "codespan-reporting 0.13.1",
+              "target": "codespan_reporting"
+            },
+            {
+              "id": "indexmap 2.14.2",
+              "target": "indexmap"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "scratch 1.0.9",
+              "target": "scratch"
+            },
+            {
+              "id": "syn 3.0.4",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "1.0.205"
+      },
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
+    "cxxbridge-flags 1.0.205": {
+      "name": "cxxbridge-flags",
+      "version": "1.0.205",
+      "package_url": "https://github.com/dtolnay/cxx",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/cxxbridge-flags/1.0.205/download",
+          "sha256": "c72569be94e2283764d334cd285980b747dbe221e27e315484eb6bcd93fa808a"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cxxbridge_flags",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cxxbridge_flags",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": {
+          "common": [
+            "default"
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "1.0.205"
+      },
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
+    "cxxbridge-macro 1.0.205": {
+      "name": "cxxbridge-macro",
+      "version": "1.0.205",
+      "package_url": "https://github.com/dtolnay/cxx",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/cxxbridge-macro/1.0.205/download",
+          "sha256": "423e795284a7f7b3f843c956a5322c4bc497b60c2dd1a6339da10313cb18d575"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "cxxbridge_macro",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "cxxbridge_macro",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "indexmap 2.14.2",
+              "target": "indexmap"
+            },
+            {
+              "id": "proc-macro2 1.0.107",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.47",
+              "target": "quote"
+            },
+            {
+              "id": "syn 3.0.4",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "1.0.205"
+      },
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
+    "direct-cargo-bazel-deps 0.0.1": {
+      "name": "direct-cargo-bazel-deps",
+      "version": "0.0.1",
+      "package_url": null,
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "direct_cargo_bazel_deps",
+            "crate_root": ".direct_cargo_bazel_deps.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "direct_cargo_bazel_deps",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "aho-corasick 1.1.5",
+              "target": "aho_corasick"
+            },
+            {
+              "id": "bumpalo 3.20.3",
+              "target": "bumpalo"
+            },
+            {
+              "id": "cxx 1.0.205",
+              "target": "cxx"
+            },
+            {
+              "id": "libc 0.2.189",
+              "target": "libc"
+            },
+            {
+              "id": "maplit 1.0.2",
+              "target": "maplit"
+            },
+            {
+              "id": "open-enum 0.5.3",
+              "target": "open_enum"
+            },
+            {
+              "id": "ra-ap-rustc_lexer 0.165.0",
+              "target": "ra_ap_rustc_lexer"
+            },
+            {
+              "id": "rstest 0.16.0",
+              "target": "rstest"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2018",
+        "version": "0.0.1"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": null
+    },
     "dyn_format 0.0.0": {
       "name": "dyn_format",
       "version": "0.0.0",
@@ -2530,6 +3581,45 @@
         "version": "1.18.0"
       },
       "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
+    "equivalent 1.0.3": {
+      "name": "equivalent",
+      "version": "1.0.3",
+      "package_url": "https://github.com/indexmap-rs/equivalent",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/equivalent/1.0.3/download",
+          "sha256": "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "equivalent",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "equivalent",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "edition": "2015",
+        "version": "1.0.3"
+      },
+      "license": "Apache-2.0 OR MIT",
       "license_ids": [
         "Apache-2.0",
         "MIT"
@@ -3019,6 +4109,50 @@
       "license": "Apache-2.0",
       "license_ids": [
         "Apache-2.0"
+      ],
+      "license_file": "LICENSE"
+    },
+    "foldhash 0.2.0": {
+      "name": "foldhash",
+      "version": "0.2.0",
+      "package_url": "https://github.com/orlp/foldhash",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/foldhash/0.2.0/download",
+          "sha256": "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "foldhash",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "foldhash",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": {
+          "common": [
+            "std"
+          ],
+          "selects": {}
+        },
+        "edition": "2021",
+        "version": "0.2.0"
+      },
+      "license": "Zlib",
+      "license_ids": [
+        "Zlib"
       ],
       "license_file": "LICENSE"
     },
@@ -3964,6 +5098,45 @@
       ],
       "license_file": "LICENSE"
     },
+    "hashbrown 0.17.1": {
+      "name": "hashbrown",
+      "version": "0.17.1",
+      "package_url": "https://github.com/rust-lang/hashbrown",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/hashbrown/0.17.1/download",
+          "sha256": "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "hashbrown",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "hashbrown",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "edition": "2024",
+        "version": "0.17.1"
+      },
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
     "heck 0.5.0": {
       "name": "heck",
       "version": "0.5.0",
@@ -4042,6 +5215,65 @@
         "version": "0.3.4"
       },
       "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
+    "indexmap 2.14.2": {
+      "name": "indexmap",
+      "version": "2.14.2",
+      "package_url": "https://github.com/indexmap-rs/indexmap",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/indexmap/2.14.2/download",
+          "sha256": "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "indexmap",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "indexmap",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": {
+          "common": [
+            "default",
+            "std"
+          ],
+          "selects": {}
+        },
+        "deps": {
+          "common": [
+            {
+              "id": "equivalent 1.0.3",
+              "target": "equivalent"
+            },
+            {
+              "id": "hashbrown 0.17.1",
+              "target": "hashbrown"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "2.14.2"
+      },
+      "license": "Apache-2.0 OR MIT",
       "license_ids": [
         "Apache-2.0",
         "MIT"
@@ -4348,22 +5580,10 @@
         ],
         "crate_features": {
           "common": [
+            "default",
             "std"
           ],
-          "selects": {
-            "aarch64-apple-darwin": [
-              "default"
-            ],
-            "aarch64-unknown-linux-gnu": [
-              "default"
-            ],
-            "x86_64-unknown-linux-gnu": [
-              "default"
-            ],
-            "x86_64-unknown-nixos-gnu": [
-              "default"
-            ]
-          }
+          "selects": {}
         },
         "deps": {
           "common": [
@@ -4647,6 +5867,93 @@
       "license_ids": [],
       "license_file": "../../../LICENSE"
     },
+    "link-cplusplus 1.0.12": {
+      "name": "link-cplusplus",
+      "version": "1.0.12",
+      "package_url": "https://github.com/dtolnay/link-cplusplus",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/link-cplusplus/1.0.12/download",
+          "sha256": "7f78c730aaa7d0b9336a299029ea49f9ee53b0ed06e9202e8cb7db9bae7b8c82"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "link_cplusplus",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "link_cplusplus",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": {
+          "common": [
+            "default"
+          ],
+          "selects": {}
+        },
+        "deps": {
+          "common": [
+            {
+              "id": "link-cplusplus 1.0.12",
+              "target": "build_script_build"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2018",
+        "version": "1.0.12"
+      },
+      "build_script_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "compile_data_glob_excludes": [
+          "**/*.rs"
+        ],
+        "data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "cc 1.4.4",
+              "target": "cc"
+            }
+          ],
+          "selects": {}
+        },
+        "links": "cplusplus"
+      },
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
     "linkme 0.3.37": {
       "name": "linkme",
       "version": "0.3.37",
@@ -4854,6 +6161,45 @@
         "version": "0.12.1"
       },
       "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
+    "maplit 1.0.2": {
+      "name": "maplit",
+      "version": "1.0.2",
+      "package_url": "https://github.com/bluss/maplit",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/maplit/1.0.2/download",
+          "sha256": "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "maplit",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "maplit",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "edition": "2015",
+        "version": "1.0.2"
+      },
+      "license": "MIT/Apache-2.0",
       "license_ids": [
         "Apache-2.0",
         "MIT"
@@ -5879,7 +7225,7 @@
               "target": "build_script_build"
             },
             {
-              "id": "unicode-ident 1.0.26",
+              "id": "unicode-ident 1.0.24",
               "target": "unicode_ident"
             }
           ],
@@ -6160,6 +7506,62 @@
       "license_ids": [
         "Apache-2.0",
         "LGPL-2.1",
+        "MIT"
+      ],
+      "license_file": null
+    },
+    "ra-ap-rustc_lexer 0.165.0": {
+      "name": "ra-ap-rustc_lexer",
+      "version": "0.165.0",
+      "package_url": "https://github.com/rust-lang/rust",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/ra-ap-rustc_lexer/0.165.0/download",
+          "sha256": "a6d7c9cc05e0e6b72a214a455a106d9b22b0494164d50a657b17bd319534c218"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "ra_ap_rustc_lexer",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "ra_ap_rustc_lexer",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "memchr 2.8.3",
+              "target": "memchr"
+            },
+            {
+              "id": "unicode-ident 1.0.24",
+              "target": "unicode_ident"
+            },
+            {
+              "id": "unicode-properties 0.1.4",
+              "target": "unicode_properties"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2024",
+        "version": "0.165.0"
+      },
+      "license": "MIT / Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
         "MIT"
       ],
       "license_file": null
@@ -7909,7 +9311,7 @@
               "target": "syn"
             },
             {
-              "id": "unicode-ident 1.0.26",
+              "id": "unicode-ident 1.0.24",
               "target": "unicode_ident"
             }
           ],
@@ -8375,7 +9777,7 @@
               "target": "syn"
             },
             {
-              "id": "unicode-ident 1.0.26",
+              "id": "unicode-ident 1.0.24",
               "target": "unicode_ident"
             }
           ],
@@ -9122,7 +10524,7 @@
               "target": "syn"
             },
             {
-              "id": "unicode-ident 1.0.26",
+              "id": "unicode-ident 1.0.24",
               "target": "unicode_ident"
             }
           ],
@@ -9942,7 +11344,7 @@
               "target": "syn"
             },
             {
-              "id": "unicode-ident 1.0.26",
+              "id": "unicode-ident 1.0.24",
               "target": "unicode_ident"
             }
           ],
@@ -10258,6 +11660,77 @@
         },
         "edition": "2018",
         "version": "1.0.23"
+      },
+      "build_script_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "compile_data_glob_excludes": [
+          "**/*.rs"
+        ],
+        "data_glob": [
+          "**"
+        ]
+      },
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
+    "scratch 1.0.9": {
+      "name": "scratch",
+      "version": "1.0.9",
+      "package_url": "https://github.com/dtolnay/scratch",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/scratch/1.0.9/download",
+          "sha256": "d68f2ec51b097e4c1a75b681a8bec621909b5e91f15bb7b840c4f2f7b01148b2"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "scratch",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "scratch",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "scratch 1.0.9",
+              "target": "build_script_build"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2015",
+        "version": "1.0.9"
       },
       "build_script_attrs": {
         "compile_data_glob": [
@@ -10968,7 +12441,7 @@
               "target": "build_script_build"
             },
             {
-              "id": "unicode-ident 1.0.26",
+              "id": "unicode-ident 1.0.24",
               "target": "unicode_ident"
             }
           ],
@@ -11063,7 +12536,7 @@
               "target": "quote"
             },
             {
-              "id": "unicode-ident 1.0.26",
+              "id": "unicode-ident 1.0.24",
               "target": "unicode_ident"
             }
           ],
@@ -11131,7 +12604,7 @@
               "target": "quote"
             },
             {
-              "id": "unicode-ident 1.0.26",
+              "id": "unicode-ident 1.0.24",
               "target": "unicode_ident"
             }
           ],
@@ -11254,6 +12727,56 @@
         "MIT"
       ],
       "license_file": "LICENSE-APACHE"
+    },
+    "termcolor 1.4.1": {
+      "name": "termcolor",
+      "version": "1.4.1",
+      "package_url": "https://github.com/BurntSushi/termcolor",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/termcolor/1.4.1/download",
+          "sha256": "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "termcolor",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "termcolor",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [],
+          "selects": {
+            "cfg(windows)": [
+              {
+                "id": "winapi-util 0.1.11",
+                "target": "winapi_util"
+              }
+            ]
+          }
+        },
+        "edition": "2018",
+        "version": "1.4.1"
+      },
+      "license": "Unlicense OR MIT",
+      "license_ids": [
+        "MIT",
+        "Unlicense"
+      ],
+      "license_file": "LICENSE-MIT"
     },
     "thiserror 2.0.20": {
       "name": "thiserror",
@@ -11627,14 +13150,14 @@
       "license_ids": [],
       "license_file": "../../../LICENSE"
     },
-    "unicode-ident 1.0.26": {
+    "unicode-ident 1.0.24": {
       "name": "unicode-ident",
-      "version": "1.0.26",
+      "version": "1.0.24",
       "package_url": "https://github.com/dtolnay/unicode-ident",
       "repository": {
         "Http": {
-          "url": "https://static.crates.io/crates/unicode-ident/1.0.26/download",
-          "sha256": "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954"
+          "url": "https://static.crates.io/crates/unicode-ident/1.0.24/download",
+          "sha256": "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
         }
       },
       "targets": [
@@ -11657,13 +13180,97 @@
           "**"
         ],
         "edition": "2021",
-        "version": "1.0.26"
+        "version": "1.0.24"
       },
       "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
       "license_ids": [
         "Apache-2.0",
         "MIT",
         "Unicode-3.0"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
+    "unicode-properties 0.1.4": {
+      "name": "unicode-properties",
+      "version": "0.1.4",
+      "package_url": "https://github.com/unicode-rs/unicode-properties",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/unicode-properties/0.1.4/download",
+          "sha256": "7df058c713841ad818f1dc5d3fd88063241cc61f49f5fbea4b951e8cf5a8d71d"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "unicode_properties",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "unicode_properties",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": {
+          "common": [
+            "emoji"
+          ],
+          "selects": {}
+        },
+        "edition": "2021",
+        "version": "0.1.4"
+      },
+      "license": "MIT/Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    },
+    "unicode-width 0.2.2": {
+      "name": "unicode-width",
+      "version": "0.2.2",
+      "package_url": "https://github.com/unicode-rs/unicode-width",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/unicode-width/0.2.2/download",
+          "sha256": "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "unicode_width",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "unicode_width",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "edition": "2021",
+        "version": "0.2.2"
+      },
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
       ],
       "license_file": "LICENSE-APACHE"
     },
@@ -11711,6 +13318,56 @@
         "MIT"
       ],
       "license_file": "LICENSE-APACHE"
+    },
+    "winapi-util 0.1.11": {
+      "name": "winapi-util",
+      "version": "0.1.11",
+      "package_url": "https://github.com/BurntSushi/winapi-util",
+      "repository": {
+        "Http": {
+          "url": "https://static.crates.io/crates/winapi-util/0.1.11/download",
+          "sha256": "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "winapi_util",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": true,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "winapi_util",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [],
+          "selects": {
+            "cfg(windows)": [
+              {
+                "id": "windows-sys 0.61.2",
+                "target": "windows_sys"
+              }
+            ]
+          }
+        },
+        "edition": "2021",
+        "version": "0.1.11"
+      },
+      "license": "Unlicense OR MIT",
+      "license_ids": [
+        "MIT",
+        "Unlicense"
+      ],
+      "license_file": "LICENSE-MIT"
     },
     "windows-link 0.2.1": {
       "name": "windows-link",
@@ -11888,11 +13545,22 @@
     "arc_anyhow 0.0.0": "cargo/common/arc_anyhow",
     "cargo-cpp_api_from_rust 0.0.0": "cargo/cc_bindings_from_rs/cargo-cpp_api_from_rust",
     "cc_bindings_from_rs 0.0.0": "cargo/cc_bindings_from_rs/cc_bindings_from_rs",
+    "cc_bindings_from_rs_avoid_colliding_types 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/avoid_colliding_types",
     "cc_bindings_from_rs_cmdline 0.0.0": "cargo/cc_bindings_from_rs/cmdline",
     "cc_bindings_from_rs_cpp_api_from_rust_lib 0.0.0": "cargo/cc_bindings_from_rs/cpp_api_from_rust_lib",
     "cc_bindings_from_rs_crubit_attr 0.0.0": "cargo/cc_bindings_from_rs/crubit_attr",
     "cc_bindings_from_rs_database 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/database/database",
+    "cc_bindings_from_rs_format_type 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/format_type",
     "cc_bindings_from_rs_generate_bindings 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/generate_bindings",
+    "cc_bindings_from_rs_generate_comment 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/generate_comment",
+    "cc_bindings_from_rs_generate_ctor 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/generate_ctor",
+    "cc_bindings_from_rs_generate_enum 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/generate_enum",
+    "cc_bindings_from_rs_generate_function 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/generate_function",
+    "cc_bindings_from_rs_generate_function_thunk 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/generate_function_thunk",
+    "cc_bindings_from_rs_generate_struct_and_union 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/generate_struct_and_union",
+    "cc_bindings_from_rs_generate_template_specialization 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/generate_template_specialization",
+    "cc_bindings_from_rs_generate_unsupported 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/generate_unsupported",
+    "cc_bindings_from_rs_get_generic_args 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/get_generic_args",
     "cc_bindings_from_rs_query_compiler 0.0.0": "cargo/cc_bindings_from_rs/generate_bindings/query_compiler",
     "cc_bindings_from_rs_run_compiler 0.0.0": "cargo/cc_bindings_from_rs/run_compiler",
     "cc_bindings_from_rs_run_compiler_test_support 0.0.0": "cargo/cc_bindings_from_rs/run_compiler_test_support",
@@ -11909,6 +13577,7 @@
     "crubit_feature 0.0.0": "cargo/common/crubit_feature",
     "crubit_hash_rust 0.1.0": "support/crubit_hash_rust",
     "crubit_support 0.1.0": "support/crubit_support",
+    "direct-cargo-bazel-deps 0.0.1": "",
     "dyn_format 0.0.0": "cargo/common/dyn_format",
     "error_report 0.0.0": "cargo/common/error_report",
     "errors 0.0.0": "cargo/common/errors",
@@ -12058,37 +13727,43 @@
     ]
   },
   "direct_deps": [
+    "aho-corasick 1.1.5",
     "anyhow 1.0.104",
     "base64 0.22.1",
+    "bumpalo 3.20.3",
     "cargo_metadata 0.23.1",
     "cc 1.4.4",
     "clap 4.6.7",
     "clap-cargo 0.18.3",
+    "cxx 1.0.205",
     "either 1.18.0",
     "flagset 0.4.7",
     "heck 0.5.0",
     "indenter 0.3.4",
     "itertools 0.13.0",
+    "libc 0.2.189",
+    "maplit 1.0.2",
     "object 0.36.7",
     "once_cell 1.21.4",
+    "open-enum 0.5.3",
     "phf 0.11.3",
     "proc-macro2 1.0.107",
     "protobuf 4.36.1-release",
     "protobuf-codegen 4.36.1-release",
     "quote 1.0.47",
+    "ra-ap-rustc_lexer 0.165.0",
     "regex 1.13.1",
+    "rstest 0.16.0",
     "rustc-stable-hash 0.1.2",
     "rustversion 1.0.23",
     "serde 1.0.229",
     "serde_json 1.0.151",
     "syn 2.0.119",
     "tempfile 3.27.0",
-    "unicode-ident 1.0.26"
+    "unicode-ident 1.0.24"
   ],
   "direct_dev_deps": [
     "googletest 0.14.3",
-    "open-enum 0.5.3",
-    "rstest 0.16.0",
     "static_assertions 1.1.0"
   ],
   "unused_patches": []

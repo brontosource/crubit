@@ -35,6 +35,7 @@
 #include "rs_bindings_from_cc/ir.h"
 #include "rs_bindings_from_cc/ir.pb.h"
 #include "rs_bindings_from_cc/recording_diagnostic_consumer.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Attrs.inc"
 #include "clang/AST/Decl.h"
@@ -216,6 +217,20 @@ void ApplyRefQualifierToThisPointer(CcType& this_param_type,
   }
 }
 
+// Returns true if `type` is one of the C++ comparison category types:
+// `std::strong_ordering`, `std::weak_ordering`, or `std::partial_ordering`.
+// (Returns false for references to these types.)
+bool IsComparisonCategoryType(clang::QualType type) {
+  const clang::CXXRecordDecl* record_decl = type->getAsCXXRecordDecl();
+  if (record_decl == nullptr || !record_decl->isInStdNamespace() ||
+      !record_decl->getIdentifier()) {
+    return false;
+  }
+  llvm::StringRef name = record_decl->getName();
+  return name == "strong_ordering" || name == "weak_ordering" ||
+         name == "partial_ordering";
+}
+
 }  // namespace
 
 static bool IsInStdNamespace(const clang::FunctionDecl* decl) {
@@ -254,10 +269,8 @@ Identifier FunctionDeclImporter::GetTranslatedParamName(
 namespace {
 
 bool FunctionInStdOrSystemHeaderWithReservedName(
-    const clang::FunctionDecl& function_decl) {
-  bool is_in_system_hdr =
-      function_decl.getASTContext().getSourceManager().isInSystemHeader(
-          function_decl.getLocation());
+    const ImportContext& ictx, const clang::FunctionDecl& function_decl) {
+  bool is_in_system_hdr = ictx.IsInSystemHeader(function_decl.getLocation());
   if (IsInStdNamespace(&function_decl) || is_in_system_hdr) {
     if (clang::IdentifierInfo* id = function_decl.getIdentifier()) {
       llvm::StringRef name = id->getName();
@@ -277,7 +290,8 @@ bool FunctionNameIsIdentifier(clang::FunctionDecl& function_decl) {
          clang::DeclarationName::Identifier;
 }
 
-bool FunctionBodyIsDefinedInHeader(const clang::FunctionDecl* function_decl) {
+bool FunctionBodyIsDefinedInHeader(const ImportContext& ictx,
+                                   const clang::FunctionDecl* function_decl) {
   if (function_decl == nullptr) {
     return false;
   }
@@ -311,7 +325,7 @@ bool FunctionBodyIsDefinedInHeader(const clang::FunctionDecl* function_decl) {
       source_manager.isWrittenInScratchSpace(loc)) {
     return false;
   }
-  if (source_manager.isInSystemHeader(loc)) {
+  if (ictx.IsInSystemHeader(loc)) {
     return true;
   }
   std::optional<llvm::StringRef> filename =
@@ -376,6 +390,16 @@ std::optional<PropertyFieldInfo> GetPropertyFieldInfo(
       record_decl->getCanonicalDecl() != receiver_record->getCanonicalDecl()) {
     return std::nullopt;
   }
+  // Under pointer field protection (PFP), a protected field holds a signed
+  // pointer: C++ loads authenticate it and C++ stores sign it. A direct access
+  // from Rust would read the signed bits as a pointer, or store a pointer that
+  // the next C++ load fails to authenticate. Such fields are only accessed
+  // through a thunk. Bindings are generated with the same compiler flags as the
+  // C++ code (in particular `-fexperimental-pointer-field-protection-abi`), so
+  // this matches the layout that C++ uses.
+  if (clang::ASTContext::isPFPField(field_decl)) {
+    return std::nullopt;
+  }
   CcType type = ictx.ConvertQualType(field_decl->getType(),
                                      /*lifetimes=*/nullptr, /*nullable=*/true,
                                      ictx.AreAssumedLifetimesEnabledForTarget(
@@ -416,8 +440,86 @@ std::optional<PropertyFieldInfo> GetPropertyFieldInfo(
   };
 }
 
+bool ZeroInitIsAllZeroBytes(const clang::ASTContext& ast_context,
+                            const clang::CXXRecordDecl& record_decl);
+
+// Returns true if zero-initializing an object of type `type` is known to
+// produce all zero bytes. This is not the case for:
+//
+// * pointers to members, whose null value is not all zero bytes in common ABIs
+//   (for example, a null pointer to data member is -1 in the Itanium C++ ABI),
+// * pointers whose null value is not all zero bytes on the target, and
+// * fields protected by pointer field protection, which are stored in an
+//   encoded form.
+//
+// The check looks through arrays, fields, and base classes. It is similar to
+// `clang::CodeGen::CodeGenTypes::isZeroInitializable`, which is not available
+// outside of Clang's code generation, but conservatively treats all pointers to
+// members as not zero-initializable.
+bool ZeroInitIsAllZeroBytes(const clang::ASTContext& ast_context,
+                            clang::QualType type) {
+  type = ast_context.getBaseElementType(type).getCanonicalType();
+  if (type->isMemberPointerType()) {
+    return false;
+  }
+  if (type->isPointerType() || type->isNullPtrType()) {
+    return ast_context.getTargetNullPointerValue(type) == 0;
+  }
+  const clang::CXXRecordDecl* record_decl = type->getAsCXXRecordDecl();
+  if (record_decl == nullptr) {
+    return true;
+  }
+  record_decl = record_decl->getDefinition();
+  return record_decl != nullptr &&
+         ZeroInitIsAllZeroBytes(ast_context, *record_decl);
+}
+
+bool ZeroInitIsAllZeroBytes(const clang::ASTContext& ast_context,
+                            const clang::CXXRecordDecl& record_decl) {
+  for (const clang::CXXBaseSpecifier& base : record_decl.bases()) {
+    if (!ZeroInitIsAllZeroBytes(ast_context, base.getType())) {
+      return false;
+    }
+  }
+  for (const clang::FieldDecl* field : record_decl.fields()) {
+    if (clang::ASTContext::isPFPField(field) ||
+        !ZeroInitIsAllZeroBytes(ast_context, field->getType())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Returns the semantic of a constructor, if any.
+//
+// A trivial default constructor leaves the object uninitialized. The C++ thunk
+// for it value-initializes the object instead (`crubit::construct_at(p)`),
+// which zero-initializes it. If that produces all zero bytes, the constructor
+// can be implemented without a thunk, by filling the object with zero bytes.
+std::optional<ir_proto::MemberFuncSemantic> GetConstructorSemantic(
+    const clang::CXXConstructorDecl* ctor_decl) {
+  if (!ctor_decl->isDefaultConstructor() || !ctor_decl->isTrivial() ||
+      ctor_decl->isDeleted()) {
+    return std::nullopt;
+  }
+  const clang::CXXRecordDecl* record_decl = ctor_decl->getParent();
+  if (!ZeroInitIsAllZeroBytes(record_decl->getASTContext(), *record_decl)) {
+    return std::nullopt;
+  }
+  ir_proto::MemberFuncSemantic semantic;
+  semantic.mutable_constructor();
+  return semantic;
+}
+
 std::optional<ir_proto::MemberFuncSemantic> GetMemberFuncSemantic(
     ImportContext& ictx, const clang::FunctionDecl* function_decl) {
+  // A constructor initializes a new object rather than updating an existing
+  // one, so it is never a getter or setter, even if its body has the same shape
+  // as a setter's: `S(int x) { x_ = x; }`.
+  if (const auto* ctor_decl =
+          clang::dyn_cast<clang::CXXConstructorDecl>(function_decl)) {
+    return GetConstructorSemantic(ctor_decl);
+  }
   auto* method_decl = clang::dyn_cast<clang::CXXMethodDecl>(function_decl);
   bool is_instance_method = method_decl && method_decl->isInstance();
   // Matches single-parameter free functions taking a record reference:
@@ -488,7 +590,7 @@ std::optional<ir_proto::MemberFuncSemantic> GetMemberFuncSemantic(
     }
   }
 
-  if (!FunctionBodyIsDefinedInHeader(def)) {
+  if (!FunctionBodyIsDefinedInHeader(ictx, def)) {
     return std::nullopt;
   }
 
@@ -645,7 +747,7 @@ std::unique_ptr<ir_proto::Item> FunctionDeclImporter::Import(
       FunctionNameIsIdentifier(*function_decl)) {
     return nullptr;
   }
-  if (FunctionInStdOrSystemHeaderWithReservedName(*function_decl)) {
+  if (FunctionInStdOrSystemHeaderWithReservedName(ictx_, *function_decl)) {
     return ictx_.ImportUnsupportedItem(
         *function_decl, std::nullopt,
         {FormattedError::Static("Internal functions from the standard "
@@ -1062,6 +1164,14 @@ std::unique_ptr<ir_proto::Item> FunctionDeclImporter::Import(
       errors.Add(FormattedError::PrefixedStrCat(
           "Return type is not supported", return_type.status().message()));
     }
+    // The generated bindings convert the result of `operator<=>` into an
+    // integer, which requires a comparison category type.
+    if (function_decl->getOverloadedOperator() == clang::OO_Spaceship &&
+        !IsComparisonCategoryType(function_decl->getReturnType())) {
+      errors.Add(FormattedError::Static(
+          "operator<=> is only supported if it returns std::strong_ordering, "
+          "std::weak_ordering, or std::partial_ordering"));
+    }
   }
 
   llvm::DenseSet<clang::tidy::lifetimes::Lifetime> all_free_lifetimes;
@@ -1196,8 +1306,10 @@ std::unique_ptr<ir_proto::Item> FunctionDeclImporter::Import(
                    clang::isa<clang::LockReturnedAttr>(attr) ||
                    clang::isa<clang::AbiTagAttr>(attr) ||
                    clang::isa<clang::LocksExcludedAttr>(attr) ||
+                   clang::isa<clang::AvailabilityAttr>(attr) ||
                    IsDefaultVisibilityAttr(attr)) {
-          // These attributes don't affect Rust.
+          // These attributes don't affect Rust (`AvailabilityAttr` is already
+          // checked via `Decl::isUnavailable` and `Decl::isWeakImported`).
           return true;
         }
         return false;
@@ -1269,8 +1381,8 @@ std::unique_ptr<ir_proto::Item> FunctionDeclImporter::Import(
   func->set_is_member_or_descendant_of_class_template(
       is_member_or_descendant_of_class_template);
   func->set_safety_annotation(safety_annotation);
-  func->set_source_loc(
-      ictx_.ConvertSourceLocation(function_decl->getBeginLoc(), &name_info));
+  *func->mutable_decl_loc() =
+      ictx_.ConvertDeclLocation(function_decl->getBeginLoc(), &name_info);
   func->set_id(ictx_.GenerateItemId(*function_decl).value());
   if (enclosing_item_id->has_value()) {
     func->set_enclosing_item_id((*enclosing_item_id)->value());

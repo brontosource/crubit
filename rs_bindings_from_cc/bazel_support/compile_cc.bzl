@@ -83,8 +83,14 @@ def compile_cc(
         compilation_outputs = compilation_outputs,
         linking_contexts = [cc_info.linking_context],
         user_link_flags = backrefs_flag,
+        # Apple's linker doesn't allow undefined symbols in dylibs, and these backward references
+        # are only resolved when linking the final binary. Link statically there instead.
+        disallow_dynamic_library = "apple" in cc_toolchain.target_gnu_system_name,
     )
 
+    # The debug context (used for debug fission) is omitted: `cc_common.create_debug_context` and
+    # `cc_common.merge_debug_context` are private rules_cc APIs outside of Google.
+    #
     # `compilation_context` already carries the headers and header modules of `cc_infos` as
     # non-exported deps. Don't re-export `cc_infos` here: the caller decides which module maps
     # dependents may use (see `RustBindingsFromCcInfo.cc_info`).

@@ -24,7 +24,7 @@ rust_library(
         "//support:crubit_annotate",
     ],
     deps = [
-        "@crate_index//:open-enum",
+        "@crate_index//:open-enum",  # v0_5
     ],
 )
 
@@ -43,4 +43,6 @@ golden_test(
     name = "example_golden_test",
     golden_h = "example_generated.h",
     rust_library = "example_crate",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )

@@ -141,7 +141,7 @@ fn test_format_struct_cpp_name_with_kythe_annotations() {
     test_format_item_with_features(
         test_src,
         "Foo",
-        crubit_feature::CrubitFeature::Experimental | crubit_feature::CrubitFeature::Supported,
+        crubit_feature::CrubitFeature::Supported,
         /* with_kythe_annotations= */ true,
         |result| {
             let result = result.unwrap().unwrap();
@@ -487,7 +487,7 @@ fn test_format_item_enum_with_kythe_annotations() {
     test_format_item_with_features(
         test_src,
         "SomeEnum",
-        crubit_feature::CrubitFeature::Experimental | crubit_feature::CrubitFeature::Supported,
+        crubit_feature::CrubitFeature::Supported,
         /* with_kythe_annotations= */ true,
         |result| {
             let result = result.unwrap().unwrap();
@@ -719,9 +719,7 @@ fn test_cpp_enum_fails_for_generic_struct() {
     test_format_item_with_features(
         test_src,
         "Color",
-        crubit_feature::CrubitFeature::Experimental
-            | crubit_feature::CrubitFeature::Supported
-            | crubit_feature::CrubitFeature::Generics,
+        crubit_feature::CrubitFeature::Supported | crubit_feature::CrubitFeature::Generics,
         /* with_kythe_annotations= */ false,
         |result| {
             let err = result.unwrap_err();
@@ -1997,9 +1995,7 @@ fn test_format_item_repr_c_union_non_final_private_field() {
 }
 
 fn enum_api_v2_features() -> flagset::FlagSet<crubit_feature::CrubitFeature> {
-    crubit_feature::CrubitFeature::Experimental
-        | crubit_feature::CrubitFeature::Supported
-        | crubit_feature::CrubitFeature::EnumApiV2
+    crubit_feature::CrubitFeature::Supported | crubit_feature::CrubitFeature::EnumApiV2
 }
 
 /// With `enum_api_v2`, a directly-tagged enum gets a struct per variant, each storing its own tag.
@@ -2705,5 +2701,44 @@ fn test_format_item_enum_api_v2_feature_disabled() {
         assert_cc_matches!(result.main_api.tokens, quote! { ... __opaque_blob_of_bytes ... });
         assert_cc_not_matches!(result.main_api.tokens, quote! { VariadicUnionStorage });
         assert_cc_not_matches!(result.main_api.tokens, quote! { enum_api_v2 });
+    });
+}
+
+#[test]
+fn test_multiple_inherent_impl_blocks_ordered_by_def_path() {
+    let test_src = r#"
+        pub struct SomeStruct(pub i32);
+
+        impl SomeStruct {
+            pub fn z_from_first_impl(&self) -> i32 { self.0 }
+            pub fn b_from_first_impl(&self) -> i32 { self.0 }
+        }
+
+        impl SomeStruct {
+            pub fn a_from_second_impl(&self) -> i32 { self.0 }
+        }
+
+        impl SomeStruct {
+            pub fn c_from_third_impl(&self) -> i32 { self.0 }
+        }
+    "#;
+    test_format_item(test_src, "SomeStruct", |result| {
+        let result = result.unwrap().unwrap();
+        assert_cc_matches!(
+            result.main_api.tokens,
+            quote! {
+                struct ... SomeStruct final {
+                    ...
+                    ::std::int32_t z_from_first_impl() const;
+                    ...
+                    ::std::int32_t b_from_first_impl() const;
+                    ...
+                    ::std::int32_t a_from_second_impl() const;
+                    ...
+                    ::std::int32_t c_from_third_impl() const;
+                    ...
+                };
+            }
+        );
     });
 }

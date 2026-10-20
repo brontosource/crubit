@@ -68,13 +68,13 @@ pub const TESTING_TARGET: &str = "//test:testing_target";
 static TESTING_FEATURES: LazyLock<flagset::FlagSet<crubit_feature::CrubitFeature>> =
     LazyLock::new(|| {
         crubit_feature::CrubitFeature::Experimental
-            | crubit_feature::CrubitFeature::Wrapper
             | crubit_feature::CrubitFeature::ForwardDeclarations
             | crubit_feature::CrubitFeature::Types
             | crubit_feature::CrubitFeature::Supported
             | crubit_feature::CrubitFeature::TemplateInstantiation
             | crubit_feature::CrubitFeature::OoCasting
             | crubit_feature::CrubitFeature::ImplCxxExternType
+            | crubit_feature::CrubitFeature::ConstantArrays
     });
 
 /// Update the IR to have common test-only items.
@@ -291,13 +291,13 @@ mod tests {
         expect_eq!(
             enabled_features,
             CrubitFeature::Experimental
-                | CrubitFeature::Wrapper
                 | CrubitFeature::ForwardDeclarations
                 | CrubitFeature::Types
                 | CrubitFeature::Supported
                 | CrubitFeature::TemplateInstantiation
                 | CrubitFeature::OoCasting
                 | CrubitFeature::ImplCxxExternType
+                | CrubitFeature::ConstantArrays
         );
         Ok(())
     }
@@ -308,13 +308,13 @@ mod tests {
         expect_eq!(
             enabled_features,
             CrubitFeature::Experimental
-                | CrubitFeature::Wrapper
                 | CrubitFeature::ForwardDeclarations
                 | CrubitFeature::Types
                 | CrubitFeature::Supported
                 | CrubitFeature::TemplateInstantiation
                 | CrubitFeature::OoCasting
                 | CrubitFeature::ImplCxxExternType
+                | CrubitFeature::ConstantArrays
         );
         Ok(())
     }

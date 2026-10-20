@@ -73,7 +73,7 @@ pub fn item_name_for_error_report<'tcx>(
     } else {
         Some(crate_name.to_string().into())
     };
-    error_report::ItemName { name, id, unique_name: None, defining_target }
+    error_report::ItemName { name, id, unique_name: None, defining_target, source_loc: None }
 }
 
 #[doc(hidden)]
@@ -128,7 +128,11 @@ pub fn unsupported_def_error_message<'tcx>(
 ) -> String {
     let tcx = db.tcx();
     let args = non_lifetime_args(args);
-    let source_loc = generate_source_location(db, def_id);
+    let source_loc = if db.is_golden_test() {
+        String::new()
+    } else {
+        format!(" defined at {}", generate_source_location(db, def_id))
+    };
     let name = tcx.def_path_str_with_args(def_id, args);
     let def_kind = tcx.def_kind(def_id);
     let kind_str = def_kind.descr(def_id);
@@ -142,7 +146,7 @@ pub fn unsupported_def_error_message<'tcx>(
 
     // https://docs.rs/anyhow/latest/anyhow/struct.Error.html#display-representations
     // says: To print causes as well [...], use the alternate selector “{:#}”.
-    format!("{bold}{kind_str} `{name}` defined at {source_loc}:{reset}{err_msg}")
+    format!("{bold}{kind_str} `{name}`{source_loc}:{reset}{err_msg}")
 }
 
 /// Formats a C++ comment explaining why no bindings have been generated for

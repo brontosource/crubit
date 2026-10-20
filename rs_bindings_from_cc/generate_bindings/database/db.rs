@@ -2,20 +2,21 @@
 // Exceptions. See /LICENSE for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-use crate::code_snippet::{ApiSnippets, BindingsInfo, NoBindingsReason, ResolvedName, Visibility};
+use crate::code_snippet::{ApiSnippets, NoBindingsReason, ResolvedName};
 use crate::function_types::{FunctionId, GeneratedFunction, ImplKind};
 use crate::rs_snippet::{LifetimeOptions, RsTypeKind, UnsafeReason};
-use arc_anyhow::{anyhow, Error, Result};
+use arc_anyhow::{Error, Result};
 use code_gen_utils::make_rs_ident;
 use crubit_abi_type::CrubitAbiType;
 use error_report::{bail, ensure, ErrorReporting, ReportFatalError};
 use heck::ToSnakeCase;
-use ir::{BazelLabel, CcType, Enum, Field, Func, GenericItem, Record, UnqualifiedIdentifier, IR};
+use ir::{CcType, Enum, Field, Func, GenericItem, Record, UnqualifiedIdentifier, IR};
 use proc_macro2::Ident;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Arguments, Write as _};
 use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Default)]
 struct InternerImpl {
@@ -145,21 +146,13 @@ memoized::query_group! {
         /// Implementation: rs_bindings_from_cc/generate_bindings/lib.rs?q=function:record_safety
         fn record_safety(&self, record: Rc<Record<'db>>) -> Option<UnsafeReason>;
 
-        /// Returns the bindings info for the given item, or an error if the item is not supported.
+        /// Returns whether the given item has bindings, or an error if the item is not supported.
         ///
         /// Implementation: rs_bindings_from_cc/generate_bindings/has_bindings.rs?q=function:has_bindings
-        fn has_bindings(&self, item: ir::Item<'db>) -> Result<BindingsInfo, NoBindingsReason>;
+        fn has_bindings(&self, item: ir::Item<'db>) -> Result<(), NoBindingsReason>;
 
         /// Returns the Rust type kind of the given C++ type, optionally filling in missing
         /// reference lifetimes with the elided lifetime (`'_`).
-        ///
-        /// An `Ok()` return value does not necessarily imply that the resulting `RsTypeKind` is
-        /// usable in APIs: callers must also check the result of `type_visibility()` for
-        /// the type, to see if it is usable within a specific crate. Eventually, all types will
-        /// have a successful non-error return value, even if the type is not generally usable.
-        /// Instead, restrictions will always be done via `type_visibility`.
-        ///
-        /// TODO(jeanpierreda): never return `Err` here, instead check `type_visibility`. See b/409128537.
         ///
         /// Implementation: rs_bindings_from_cc/generate_bindings/rs_type_kind.rs?q=function:rs_type_kind_with_lifetime_elision
         fn rs_type_kind_with_lifetime_elision(&self, cc_type: CcType, lifetime_options: LifetimeOptions) -> Result<RsTypeKind<'db>>;
@@ -223,9 +216,6 @@ memoized::query_group! {
         ///
         /// Implementation: rs_bindings_from_cc/generate_bindings/lib.rs?q=function:crubit_abi_type
         fn crubit_abi_type(&self, rs_type_kind: RsTypeKind<'db>) -> Result<CrubitAbiType>;
-
-        // You should probably use `type_visibility()` instead of this function.
-        fn type_target_restriction(&self, rs_type_kind: RsTypeKind<'db>) -> Result<Option<BazelLabel>>;
 
         /// Resolves names to a map from name to ResolvedName.
         ///
@@ -418,36 +408,11 @@ impl<'db> BindingsGenerator<'db> {
 
     /// Returns true if `func` has a conflicting mangled name.
     pub fn has_conflicting_mangled_name(&self, func: &ir::Func<'_>) -> bool {
-        let conflicts_counter =
-            self.mangled_name_counts().get(func.mangled_name()).copied().unwrap_or(0);
+        // See `mangled_name_counts` for why the `\x01` prefix is stripped.
+        let mangled_name = func.mangled_name();
+        let mangled_name = mangled_name.strip_prefix('\u{1}').unwrap_or(mangled_name);
+        let conflicts_counter = self.mangled_name_counts().get(mangled_name).copied().unwrap_or(0);
         conflicts_counter > 1
-    }
-
-    /// Returns the `Visibility` of the `rs_type_kind` in the given `library`.
-    pub fn type_visibility(
-        &self,
-        library: &BazelLabel,
-        rs_type_kind: RsTypeKind<'db>,
-    ) -> Result<Visibility> {
-        match self.type_target_restriction(rs_type_kind.clone())? {
-            Some(label) if &label != library => {
-                let rs_type_kind = rs_type_kind.display(self);
-                Err(anyhow!(
-                    "crubit.rs/errors/visibility: Support for `{rs_type_kind}` is experimental.\n\
-                      Its use is restricted to `pub(crate)` in defining target:\n\
-                      `{label}`"
-                ))
-            }
-            Some(_) => Ok(Visibility::PubCrate),
-            None => {
-                for subtype in rs_type_kind.dfs_iter() {
-                    if let RsTypeKind::Error { visibility_override, .. } = subtype {
-                        return Ok(visibility_override.unwrap_or(Visibility::PubCrate));
-                    }
-                }
-                Ok(Visibility::Public)
-            }
-        }
     }
 
     /// Returns the target that this item was defined in, if it was defined somewhere other than
@@ -525,7 +490,7 @@ impl<'db> BindingsGenerator<'db> {
                 return intern!(
                     self.interner(),
                     "<[internal] comment at {}>",
-                    c.source_loc().unwrap_or("<unknown loc>")
+                    ir::DeclLocationOrUnknown(c.decl_loc())
                 );
             }
             ir::Item::UseMod(u) => {
@@ -569,53 +534,7 @@ impl<'db> BindingsGenerator<'db> {
         };
 
         let base_name = match cc_type.variant() {
-            ir::CcTypeVariant::Primitive(p) => match p {
-                ir::Primitive::Bool => "bool",
-                ir::Primitive::Void => "void",
-                ir::Primitive::Float => "float",
-                ir::Primitive::Double => "double",
-                ir::Primitive::Char => "char",
-                ir::Primitive::SignedChar => "signed char",
-                ir::Primitive::UnsignedChar => "unsigned char",
-                ir::Primitive::Short => "short",
-                ir::Primitive::Int => "int",
-                ir::Primitive::Long => "long",
-                ir::Primitive::LongLong => "long long",
-                ir::Primitive::Int128 => "__int128",
-                ir::Primitive::UnsignedShort => "unsigned short",
-                ir::Primitive::UnsignedInt => "unsigned int",
-                ir::Primitive::UnsignedLong => "unsigned long",
-                ir::Primitive::UnsignedLongLong => "unsigned long long",
-                ir::Primitive::UnsignedInt128 => "unsigned __int128",
-
-                ir::Primitive::Char16T => "char16_t",
-                ir::Primitive::Char32T => "char32_t",
-                ir::Primitive::PtrdiffT => "ptrdiff_t",
-                ir::Primitive::IntptrT => "intptr_t",
-                ir::Primitive::SizeT => "size_t",
-                ir::Primitive::UintptrT => "uintptr_t",
-                ir::Primitive::StdPtrdiffT => "std::ptrdiff_t",
-                ir::Primitive::StdIntptrT => "std::intptr_t",
-                ir::Primitive::StdSizeT => "std::size_t",
-                ir::Primitive::StdUintptrT => "std::uintptr_t",
-                ir::Primitive::Int8T => "int8_t",
-                ir::Primitive::Int16T => "int16_t",
-                ir::Primitive::Int32T => "int32_t",
-                ir::Primitive::Int64T => "int64_t",
-                ir::Primitive::StdInt8T => "std::int8_t",
-                ir::Primitive::StdInt16T => "std::int16_t",
-                ir::Primitive::StdInt32T => "std::int32_t",
-                ir::Primitive::StdInt64T => "std::int64_t",
-                ir::Primitive::Uint8T => "uint8_t",
-                ir::Primitive::Uint16T => "uint16_t",
-                ir::Primitive::Uint32T => "uint32_t",
-                ir::Primitive::Uint64T => "uint64_t",
-                ir::Primitive::StdUint8T => "std::uint8_t",
-                ir::Primitive::StdUint16T => "std::uint16_t",
-                ir::Primitive::StdUint32T => "std::uint32_t",
-                ir::Primitive::StdUint64T => "std::uint64_t",
-            }
-            .to_string(),
+            ir::CcTypeVariant::Primitive(p) => p.to_string(),
             ir::CcTypeVariant::Pointer(ptr) => {
                 let ptr_str = match ptr.kind() {
                     ir::PointerTypeKind::LValueRef => "&",
@@ -670,7 +589,7 @@ impl<'db> BindingsGenerator<'db> {
             item.unique_name(),
             item.unsupported_kind(),
             item.id(),
-            item.source_loc(),
+            item.decl_loc(),
             self.defining_target(item.id()),
             must_bind,
             path,
@@ -688,7 +607,7 @@ impl<'db> BindingsGenerator<'db> {
         self.new_unsupported_item(
             item,
             path,
-            Some(Rc::new(ir::FormattedError { fmt: Rc::clone(&message), message })),
+            Some(Rc::new(ir::FormattedError { fmt: Rc::clone(&message), message, cause: None })),
             item.must_bind(),
         )
     }
@@ -703,7 +622,11 @@ impl<'db> BindingsGenerator<'db> {
         self.new_unsupported_item(
             item,
             path,
-            Some(Rc::new(ir::FormattedError { fmt: Rc::clone(&message), message })),
+            Some(Rc::new(ir::FormattedError {
+                fmt: Rc::clone(&message),
+                message,
+                cause: Some(cause),
+            })),
             item.must_bind(),
         )
     }
@@ -716,6 +639,27 @@ impl<'db> BindingsGenerator<'db> {
             id: item.id().as_u64(),
             unique_name: item.unique_name().map(Rc::from),
             defining_target: self.defining_target(item.id()).map(|label| label.as_str().into()),
+            source_loc: item
+                .decl_loc()
+                .and_then(|decl_loc| decl_loc.spelling())
+                .map(|spelling| intern!(self.interner(), "{spelling}")),
+        }
+    }
+
+    /// Returns a reference to `item_id` for the error report, for use when its lack of bindings
+    /// causes an error in another item.
+    ///
+    /// Unlike in `error_item_name`, the defining target is always set if known: it is the target
+    /// that defines the template for template instantiations, and the owning target otherwise.
+    pub fn blocker(&self, item_id: ir::ItemId) -> error_report::Blocker {
+        let item = self.find_untyped_decl(item_id);
+        error_report::Blocker {
+            name: Arc::from(&*self.debug_name(item_id)),
+            unique_name: item.unique_name().map(Arc::from),
+            defining_target: self
+                .defining_target(item_id)
+                .or_else(|| item.owning_target())
+                .map(|label| label.as_str().into()),
         }
     }
 

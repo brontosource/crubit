@@ -163,12 +163,11 @@ struct CRUBIT_INTERNAL_RUST_TYPE(":: callables_golden :: Point") alignas(4)
 };
 
 // Error generating bindings for function
-// `callables_golden::call_and_return_borrowed_callable` defined at
-// cc_bindings_from_rs/test/callables/callables.rs;l=249:
-// Function parameter #0 is a borrowed callable (`&'a (dyn std::ops::Fn(i32) ->
-// i32 + 'a)`), whose lifetime is captured by the return type `&'a i32`. This is
-// not supported because callable trampoline closures are temporary and cannot
-// outlive the function call.
+// `callables_golden::call_and_return_borrowed_callable`: Function parameter #0
+// is a borrowed callable (`&'a (dyn std::ops::Fn(i32) -> i32 + 'a)`), whose
+// lifetime is captured by the return type `&'a i32`. This is not supported
+// because callable trampoline closures are temporary and cannot outlive the
+// function call.
 
 // CRUBIT_ANNOTATE: must_bind=
 ::rs::Movable<::callables::NonCppMovable> call_and_return_non_movable(
@@ -344,11 +343,10 @@ struct ::rs::impl<::callables::Point, ::rs::core::fmt::Debug> {
   static constexpr bool kIsImplemented = true;
 
   // Error generating bindings for associated function `<callables_golden::Point
-  // as std::fmt::Debug>::fmt` defined at
-  // cc_bindings_from_rs/test/callables/callables.rs;l=74:
-  // Error formatting function return type `std::result::Result<(),
-  // std::fmt::Error>`: Failed to format type for the definition of
-  // `std::fmt::Error`: Zero-sized types (ZSTs) are not supported (b/258259459)
+  // as std::fmt::Debug>::fmt`: Error formatting function return type
+  // `std::result::Result<(), std::fmt::Error>`: Failed to format type for the
+  // definition of `std::fmt::Error`: Zero-sized types (ZSTs) are not supported
+  // (b/258259459)
 };
 #ifndef _CRUBIT_BINDINGS_FOR__x0000003a_x0000003a_x00000020rs_x00000020_x0000003a_x0000003a_x00000020Option_x00000020_x0000003c_x00000020_x0000003a_x0000003a_x00000020std_x00000020_x0000003a_x0000003a_x00000020int32_ut_x00000020_x0000003e
 #define _CRUBIT_BINDINGS_FOR__x0000003a_x0000003a_x00000020rs_x00000020_x0000003a_x0000003a_x00000020Option_x00000020_x0000003c_x00000020_x0000003a_x0000003a_x00000020std_x00000020_x0000003a_x0000003a_x00000020int32_ut_x00000020_x0000003e
@@ -371,16 +369,16 @@ struct alignas(4) CRUBIT_INTERNAL_RUST_TYPE(
   constexpr Option(::std::nullopt_t) noexcept;
   constexpr Option& operator=(::std::nullopt_t) noexcept;
   template <typename U>
-    requires(::rs::OptionForwardConstructible<Option, ::std::int32_t, U>)
+    requires ::rs::OptionForwardConstructible<Option, ::std::int32_t, U>
   Option(U&& value) noexcept;
   template <typename U>
-    requires(::rs::OptionForwardConstructible<Option, ::std::int32_t, U>)
+    requires ::rs::OptionForwardConstructible<Option, ::std::int32_t, U>
   Option& operator=(U&& value) noexcept;
   template <typename Opt>
-    requires(::rs::OptionFromStdOptional<::std::int32_t, Opt>)
+    requires ::rs::OptionFromStdOptional<::std::int32_t, Opt>
   Option(Opt&& value) noexcept;
   template <typename Opt>
-    requires(::rs::OptionFromStdOptional<::std::int32_t, Opt>)
+    requires ::rs::OptionFromStdOptional<::std::int32_t, Opt>
   Option& operator=(Opt&& value) noexcept;
   template <typename... Args>
   explicit Option(::std::in_place_t ip, Args&&... args) noexcept;
@@ -1411,24 +1409,24 @@ inline constexpr ::rs::Option<::std::int32_t>& ::rs::Option<
   return *this;
 }
 template <typename U>
-  requires(::rs::OptionForwardConstructible<::rs::Option<::std::int32_t>,
-                                            ::std::int32_t, U>)
+  requires ::rs::OptionForwardConstructible<::rs::Option<::std::int32_t>,
+                                            ::std::int32_t, U>
 inline ::rs::Option<::std::int32_t>::Option(U&& value) noexcept
     : base_type(::std::forward<U>(value)) {}
 template <typename U>
-  requires(::rs::OptionForwardConstructible<::rs::Option<::std::int32_t>,
-                                            ::std::int32_t, U>)
+  requires ::rs::OptionForwardConstructible<::rs::Option<::std::int32_t>,
+                                            ::std::int32_t, U>
 inline ::rs::Option<::std::int32_t>& ::rs::Option<::std::int32_t>::operator=(
     U&& value) noexcept {
   base_type::operator=(::std::forward<U>(value));
   return *this;
 }
 template <typename Opt>
-  requires(::rs::OptionFromStdOptional<::std::int32_t, Opt>)
+  requires ::rs::OptionFromStdOptional<::std::int32_t, Opt>
 inline ::rs::Option<::std::int32_t>::Option(Opt&& value) noexcept
     : base_type(::std::forward<Opt>(value)) {}
 template <typename Opt>
-  requires(::rs::OptionFromStdOptional<::std::int32_t, Opt>)
+  requires ::rs::OptionFromStdOptional<::std::int32_t, Opt>
 inline ::rs::Option<::std::int32_t>& ::rs::Option<::std::int32_t>::operator=(
     Opt&& value) noexcept {
   base_type::operator=(::std::forward<Opt>(value));

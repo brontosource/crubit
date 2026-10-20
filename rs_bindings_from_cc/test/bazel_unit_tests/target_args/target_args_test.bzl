@@ -22,35 +22,32 @@ load(
 
 def _is_std(t):
     for std_pattern in [
-        "crubit/support/cc_std:cc_std",
+        "support/cc_std:cc_std",
         "//:_builtin_hdrs",
     ]:
         if std_pattern in str(t):
             return True
     return False
 
+def _decode_target_args(tut):
+    target_args = [json.decode(args) for args in tut[RustBindingsFromCcInfo].target_args.to_list()]
+    for x in target_args:
+        # With Bzlmod, labels in the main repository are stringified as `@@//package:name`.
+        x["t"] = x["t"].removeprefix("@@")
+    return target_args
+
 def _get_target_args(tut):
-    return [
-        x
-        for x in [
-            json.decode(args)
-            for args in tut[RustBindingsFromCcInfo].target_args.to_list()
-        ]
-        if not _is_std(x["t"])
-    ]
+    return [x for x in _decode_target_args(tut) if not _is_std(x["t"])]
 
 def _lib_has_toolchain_targets_and_headers_test_impl(ctx):
     env = analysistest.begin(ctx)
     target_under_test = analysistest.target_under_test(env)
-    target_args = [
-        json.decode(args)
-        for args in target_under_test[RustBindingsFromCcInfo].target_args.to_list()
-    ]
+    target_args = _decode_target_args(target_under_test)
 
     asserts.equals(env, 3, len(target_args))
     asserts.true(
         env,
-        "crubit/support/cc_std:cc_std" in target_args[0]["t"],
+        "support/cc_std:cc_std" in target_args[0]["t"],
     )
     asserts.equals(
         env,
@@ -102,7 +99,7 @@ def _test_targets_and_headers():
     cc_library(
         name = "mylib",
         hdrs = ["lib.h"],
-        aspect_hints = ["//features/internal:testonly_experimental"],
+        aspect_hints = ["//features/internal:testonly_supported"],
     )
     attach_aspect(name = "mylib_with_aspect", dep = ":mylib")
 
@@ -171,9 +168,9 @@ targets_and_headers_propagate_with_cc_info_test = crubit_make_analysis_test(
 
 def _test_targets_and_headers_propagate_with_cc_infos():
     cc_library(name = "bottommest_no_crubit_aspect_hint")
-    cc_library(name = "bottom", hdrs = ["lib.h"], deps = [":bottommest_no_crubit_aspect_hint"], aspect_hints = ["//features/internal:testonly_experimental"])
-    cc_library(name = "middle", deps = [":bottom"], aspect_hints = ["//features/internal:testonly_experimental"])
-    cc_library(name = "top", hdrs = ["top.h"], deps = [":middle"], aspect_hints = ["//features/internal:testonly_experimental"])
+    cc_library(name = "bottom", hdrs = ["lib.h"], deps = [":bottommest_no_crubit_aspect_hint"], aspect_hints = ["//features/internal:testonly_supported"])
+    cc_library(name = "middle", deps = [":bottom"], aspect_hints = ["//features/internal:testonly_supported"])
+    cc_library(name = "top", hdrs = ["top.h"], deps = [":middle"], aspect_hints = ["//features/internal:testonly_supported"])
     attach_aspect(name = "top_with_aspect", dep = ":top")
 
     targets_and_headers_propagate_with_cc_info_test(
@@ -235,7 +232,7 @@ def _test_textual_hdrs_not_in_targets_and_hdrs():
             "textual_in_hdrs.inc",
         ],
         srcs = ["textual_in_srcs.inc"],
-        aspect_hints = ["//features/internal:testonly_experimental"],
+        aspect_hints = ["//features/internal:testonly_supported"],
         textual_hdrs = ["textual1.inc", "textual2.h"],
     )
     attach_aspect(name = "textual_with_aspect", dep = ":textual")
@@ -250,13 +247,15 @@ def _test_toolchain_headers_in_header_analysis_action():
         name = "somelib",
         hdrs = ["someheader.h"],
         deps = [":mylib"],
-        aspect_hints = ["//features/internal:testonly_experimental"],
+        aspect_hints = ["//features/internal:testonly_supported"],
     )
     attach_aspect(name = "somelib_with_aspect", dep = ":somelib")
 
     toolchain_headers_in_header_analysis_action_test(
         name = "toolchain_headers_in_header_analysis_action_test",
         target_under_test = ":somelib_with_aspect",
+        # Checks for Google-internal libc header paths (//nowhere/libc_*include/inttypes.h).
+        tags = ["manual"],
     )
 
 def _generated_headers_specified_with_full_path_impl(ctx):
@@ -293,7 +292,7 @@ def _test_generated_headers_specified_with_full_path():
         hdrs = [
             "generated.h",
         ],
-        aspect_hints = ["//features/internal:testonly_experimental"],
+        aspect_hints = ["//features/internal:testonly_supported"],
     )
     attach_aspect(name = "generated_header_with_aspect", dep = ":use_generated")
 
@@ -345,7 +344,7 @@ def _target_features_nonempty_test_impl(ctx):
     )
     asserts.equals(
         env,
-        ["experimental", "supported"],
+        ["supported", "types"],
         target_args[1]["f"],
     )
 
@@ -356,7 +355,7 @@ target_features_nonempty_test = crubit_make_analysis_test(_target_features_nonem
 def _test_target_features_nonempty():
     cc_library(name = "mylib_nonempty_features", hdrs = ["lib.h"], aspect_hints = [
         "//features/internal:testonly_supported",
-        "//features/internal:testonly_experimental",  # merged in as well
+        "//features/internal:testonly_types",  # merged in as well
     ])
     attach_aspect(name = "mylib_nonempty_features_with_aspect", dep = ":mylib_nonempty_features")
 
@@ -386,7 +385,8 @@ def target_args_test(name):
             ":targets_and_headers_propagate_with_cc_info_test",
             ":textual_hdrs_not_in_targets_and_hdrs_test",
             ":lib_has_toolchain_targets_and_headers_test",
-            ":toolchain_headers_in_header_analysis_action_test",
+            # Not ":toolchain_headers_in_header_analysis_action_test", which is manual (it checks
+            # for Google-internal paths), but would still run if listed here.
             ":generated_headers_specified_with_full_path_test",
             ":target_features_empty_test",
             ":target_features_nonempty_test",
