@@ -93,6 +93,7 @@ crubit_toolchains.configure(
 )
 use_repo(
     crubit_toolchains,
+    "crubit_system_headers",
     "llvm_toolchain",
     "llvm_toolchain_llvm",
     "llvm_version_check",
@@ -104,14 +105,34 @@ register_toolchains(
     "@rust_toolchains//:all",
     "@llvm_toolchain//:all",
     "//common/bazel_support/toolchains:cc_bindings_from_rs_on_demand_linux",
+    "//common/bazel_support/toolchains:cc_bindings_from_rs_on_demand_macos_arm64",
+    "//common/bazel_support/toolchains:cc_bindings_from_rs_on_demand_macos_x86_64",
+    "//common/bazel_support/toolchains:rs_bindings_from_cc_on_demand_linux",
+    "//common/bazel_support/toolchains:rs_bindings_from_cc_on_demand_macos_arm64",
+    "//common/bazel_support/toolchains:rs_bindings_from_cc_on_demand_macos_x86_64",
+    "//common/bazel_support/toolchains:rs_bindings_from_cc_fake",
 )
 
 # TODO(b/379928127): Remove this override once cl/974009395 is released in BCR.
+# Enables Crubit bindings for Abseil targets (see the patch for details).
+single_version_override(
+    module_name = "abseil-cpp",
+    patch_strip = 1,
+    patches = [
+        "//patches:abseil_crubit_aspect_hints.patch",
+        "//patches:abseil_default_nonnull_pragma.patch",
+    ],
+    version = "20260526.0",
+)
+
 single_version_override(
     module_name = "protobuf",
     patch_strip = 1,
     patches = [
         "//patches:protobuf_visibility.patch",
+        "//patches:protobuf_aspects_visibility.patch",
+        "//patches:protobuf_rust_bazel_exports.patch",
+        "//patches:protobuf_rust_thunks.patch",
     ],
     version = "36.1.bcr.1",
 )
@@ -122,6 +143,8 @@ single_version_override(
     patch_strip = 1,
     patches = [
         "//patches:rules_rust_transitive_repin.patch",
+        "//bazel/rules_rust:attach_rust_bindings_from_cc_aspect.patch",
+        "//patches:rules_rust_case_insensitive_ambiguous_libs.patch",
     ],
     version = "0.71.3",
 )

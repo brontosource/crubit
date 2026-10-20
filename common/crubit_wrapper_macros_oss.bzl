@@ -10,7 +10,11 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-crubit_rust_test = rust_test
+def crubit_rust_test(**kwargs):
+    # Ignore the `crubit_dep` argument, as the OSS version of
+    # `crubit_rust_test` never inherits a dep on Crubit.
+    kwargs.pop("crubit_dep", default = False)
+    rust_test(**kwargs)
 
 def crubit_rust_binary(**kwargs):
     # Ignore the `crubit_dep` argument, as the OSS version of

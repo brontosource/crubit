@@ -10,10 +10,8 @@ licenses(["notice"])
 cc_library(
     name = "example_lib",
     hdrs = ["example.h"],
-
     # Opt into using Crubit.
     aspect_hints = ["//features:supported"],
-    deps = ["@abseil-cpp//absl/base:core_headers"],
 )
 
 rust_binary(

@@ -267,9 +267,18 @@ class DynCallable : private internal_dyn_callable::Impl<Sig> {
   operator absl::AnyInvocable<Sig>() && {
     auto* manager = this->manager_;
     auto* invoker = this->invoker_;
-    this->manager_ = internal_dyn_callable::EmptyManager;
-    this->invoker_ = nullptr;
-    return absl::AnyInvocable<Sig>(&this->storage_, manager, invoker);
+    if constexpr (requires {
+                    absl::AnyInvocable<Sig>(&this->storage_, manager, invoker);
+                  }) {
+      this->manager_ = internal_dyn_callable::EmptyManager;
+      this->invoker_ = nullptr;
+      return absl::AnyInvocable<Sig>(&this->storage_, manager, invoker);
+    } else {
+      // Open-source Abseil has no constructor that adopts the internal
+      // representation, so wrap the `DynCallable` instead (which may allocate).
+      if (!*this) return nullptr;
+      return absl::AnyInvocable<Sig>(std::move(*this));
+    }
   }
 
   // Returns `true` if `f` is empty.

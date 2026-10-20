@@ -1071,7 +1071,9 @@ bool IsKnownAttr(const clang::Attr& attr) {
          clang::isa<clang::ScopedLockableAttr>(attr) ||
          clang::isa<clang::CapabilityAttr>(attr) ||
          clang::isa<clang::ReentrantCapabilityAttr>(attr) ||
-         clang::isa<clang::UnusedAttr>(attr);
+         clang::isa<clang::UnusedAttr>(attr) ||
+         // Only affects diagnostics. Open-source protobuf marks messages with it.
+         clang::isa<clang::WarnUnusedAttr>(attr);
 }
 
 static ir_proto::StatusOrOptionalString ToFlatProto(

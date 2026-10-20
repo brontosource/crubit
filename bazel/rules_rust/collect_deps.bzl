@@ -36,7 +36,8 @@ def collect_transformed_deps(ctx):
 
     for dep in ctx.attr.deps:
         if RustBindingsFromCcInfo in dep:
-            deps.append(dep[RustBindingsFromCcInfo].dep_variant_info)
+            if dep[RustBindingsFromCcInfo].dep_variant_info:
+                deps.append(dep[RustBindingsFromCcInfo].dep_variant_info)
             deps.append(
                 DepVariantInfo(
                     cc_info = dep[RustBindingsFromCcInfo].cc_info,
@@ -49,7 +50,8 @@ def collect_transformed_deps(ctx):
     if hasattr(ctx.attr, "cc_deps"):
         for dep in ctx.attr.cc_deps:
             if RustBindingsFromCcInfo in dep:
-                deps.append(dep[RustBindingsFromCcInfo].dep_variant_info)
+                if dep[RustBindingsFromCcInfo].dep_variant_info:
+                    deps.append(dep[RustBindingsFromCcInfo].dep_variant_info)
                 deps.append(
                     DepVariantInfo(
                         cc_info = dep[RustBindingsFromCcInfo].cc_info,
@@ -76,7 +78,7 @@ def get_cc_import_namespace_variable(ctx):
         namespace_json_filepaths.extend([
             dep[RustBindingsFromCcInfo].namespaces.path
             for dep in ctx.attr.cc_deps
-            if RustBindingsFromCcInfo in dep
+            if RustBindingsFromCcInfo in dep and dep[RustBindingsFromCcInfo].namespaces
         ])
 
     cc_import_namespaces_var_name = "CC_IMPORT_NAMESPACES"
@@ -110,6 +112,6 @@ def get_namespace_json_files(ctx):
         return [
             dep[RustBindingsFromCcInfo].namespaces
             for dep in ctx.attr.cc_deps
-            if RustBindingsFromCcInfo in dep
+            if RustBindingsFromCcInfo in dep and dep[RustBindingsFromCcInfo].namespaces
         ]
     return []

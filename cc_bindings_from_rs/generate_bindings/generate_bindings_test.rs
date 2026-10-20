@@ -5,6 +5,8 @@
 #![feature(rustc_private)]
 
 extern crate rustc_middle;
+extern crate rustc_hir;
+extern crate rustc_span;
 
 use code_gen_utils::NamespaceQualifier;
 use generate_bindings::format_namespace_bound_cc_tokens;
@@ -298,7 +300,6 @@ fn test_generated_bindings_prereq_fwd_decls_deterministic_order() {
                     struct CRUBIT_INTERNAL_RUST_TYPE(...) alignas(...) [[clang::trivial_abi]] S1 final { ... } ...
                     struct CRUBIT_INTERNAL_RUST_TYPE(...) alignas(...) [[clang::trivial_abi]] S2 final { ... } ...
                     } ...
-
 
                     namespace rust_out::b { ...
                     struct CRUBIT_INTERNAL_RUST_TYPE(...) alignas(...) [[clang::trivial_abi]] S3 final { ... } ...

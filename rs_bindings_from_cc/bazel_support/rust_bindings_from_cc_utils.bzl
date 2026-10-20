@@ -24,7 +24,6 @@ load(
 )
 load("@rules_crubit//rs_bindings_from_cc/bazel_support:compile_cc.bzl", "compile_cc")
 load("@rules_crubit//rs_bindings_from_cc/bazel_support:compile_rust.bzl", "compile_rust")
-load("@rules_crubit//rs_bindings_from_cc/bazel_support:encode_raw_string_as_crate_name.bzl", "encode_raw_string_as_crate_name")
 load(
     "@rules_crubit//rs_bindings_from_cc/bazel_support:generate_bindings.bzl",
     "escape_cpp_target_name",
@@ -59,6 +58,7 @@ def generate_and_compile_bindings(
         action_inputs,
         target_args,
         extra_rs_srcs,
+        system_public_hdr_paths = [],
         unstable_rust_features = [],
         deps_for_cc_file = [],
         deps_for_rs_file = depset(),
@@ -87,6 +87,8 @@ def generate_and_compile_bindings(
       target_args: A depset of strings, each one representing mapping of target to
                         its per-target arguments (headers, features, crate name) in json format.
       extra_rs_srcs: list[tuple[file, str]]: Additional source file and module path pairs for the Rust crate.
+      system_public_hdr_paths: list[str]: Absolute paths of additional public headers that are not
+        Bazel files (e.g. standard library headers in the macOS SDK).
       unstable_rust_features: list[str]: List of unstable rustc features to enable via `#![feature(...)]`.
       deps_for_cc_file: list[CcInfo]: CcInfos needed by the generated C++ source file.
       deps_for_rs_file: depset[DepVariantInfo]: DepVariantInfos needed by the generated Rust source file.
@@ -160,6 +162,7 @@ def generate_and_compile_bindings(
         feature_configuration = feature_configuration_for_bindings,
         compilation_context = compilation_context,
         public_hdrs = public_hdrs,
+        system_public_hdr_paths = system_public_hdr_paths,
         header_includes = header_includes,
         action_inputs = action_inputs,
         target_args = target_args,
@@ -280,11 +283,6 @@ def generate_and_compile_bindings(
         compile_data = compile_data_relocated,
     )
 
-    if use_label_encoded_names_for_deps:
-        name = encode_raw_string_as_crate_name(str(dep_variant_info.crate_info.owner))
-    else:
-        name = dep_variant_info.crate_info.name
-
     # The headers, header modules, and linking information of the impl and its deps flow to
     # dependents as non-exported deps. Only `exported_cc_infos` (one level) and `support_cc_info`
     # (transitively) export their module maps, so that a dependent's `_rust_api_impl.cc` doesn't
@@ -306,15 +304,10 @@ def generate_and_compile_bindings(
                 direct = [file for (file, _) in extra_rs_srcs],
                 transitive = [additional_rust_srcs],
             ),
-            extra_named_deps = depset(
-                direct = [
-                    AliasableDepInfo(
-                        name = name,
-                        dep = dep_variant_info.crate_info,
-                    ),
-                ],
-                transitive = [extra_named_deps],
-            ),
+            # OSS rules_rust's `CrateInfo` holds dicts (e.g. `rustc_env`) that are still mutable
+            # within this rule, so it can't be placed in a depset here. `extra_named_deps` is not
+            # consumed by OSS rules_rust, so only the transitive entries are propagated.
+            extra_named_deps = extra_named_deps,
         ),
         GeneratedBindingsInfo(
             cc_file = cc_output,
