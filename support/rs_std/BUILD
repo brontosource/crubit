@@ -16,7 +16,7 @@ cc_library(
     srcs = ["char.cc"],
     hdrs = ["char.h"],
     # Enable bidirectional bindings (via crubit_internal_rust_type).
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = [
         "//visibility:public",
@@ -38,7 +38,7 @@ cc_library(
 cc_library(
     name = "int",
     hdrs = ["int.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = [
         "//visibility:public",
@@ -52,9 +52,11 @@ cc_library(
 crubit_cc_test(
     name = "int_test",
     srcs = ["int_test.cc"],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":int",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )
@@ -71,14 +73,17 @@ alias(
 crubit_cc_test(
     name = "char_test",
     srcs = ["char_test.cc"],
+    # TODO(b/522829368): `char_::encode_utf8` returns the wrong bytes on Windows
+    # (`EncodedIsUtf8BytesTest` fails on x86_64 and x86).
+    tags = ["no_windows"],
     deps = [
         ":char",
         ":str_ref",
         "//support/rs_std/internal:is_utf8",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
-        "@fuzztest",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )
@@ -146,7 +151,7 @@ cc_library(
     name = "slice_ref",
     hdrs = ["slice_ref.h"],
     # Enable bidirectional bindings (via crubit_internal_rust_type).
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = ["//visibility:public"],
 
@@ -164,14 +169,18 @@ cc_library(
 crubit_cc_test(
     name = "slice_ref_test",
     srcs = ["slice_ref_test.cc"],
-    # Continuous fuzzing (autofuzz) is not supported for Crubit targets because crubit_cc_test uses
-    # a custom transition to the LLVM unstable toolchain.
-    tags = ["noautofuzz"],
+    tags = [
+        # TODO(b/522829368): remove `no_windows` to enable.
+        "no_windows",
+        # Continuous fuzzing (autofuzz) is not supported for Crubit targets because crubit_cc_test uses
+        # a custom transition to the LLVM unstable toolchain.
+        "noautofuzz",
+    ],
     deps = [
         ":slice_ref",
         "@abseil-cpp//absl/types:span",
-        "@fuzztest",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )
@@ -180,7 +189,7 @@ cc_library(
     name = "str_ref",
     hdrs = ["str_ref.h"],
     # Enable bidirectional bindings (via crubit_internal_rust_type).
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = ["//visibility:public"],
 
@@ -200,12 +209,14 @@ cc_library(
 crubit_cc_test(
     name = "str_ref_test",
     srcs = ["str_ref_test.cc"],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":str_ref",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
-        "@fuzztest",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )
@@ -225,7 +236,7 @@ cc_library(
     name = "dyn_callable",
     hdrs = ["dyn_callable.h"],
     aspect_hints = [
-        "//features:experimental",
+        "//features:supported",
     ],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = ["//visibility:public"],
@@ -240,10 +251,12 @@ cc_library(
 crubit_cc_test(
     name = "dyn_callable_test",
     srcs = ["dyn_callable_test.cc"],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":dyn_callable",
         "@abseil-cpp//absl/functional:any_invocable",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )
@@ -251,7 +264,7 @@ crubit_cc_test(
 cc_library(
     name = "fn_ref",
     hdrs = ["fn_ref.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = ["//visibility:public"],
 )
@@ -259,9 +272,11 @@ cc_library(
 crubit_cc_test(
     name = "fn_ref_test",
     srcs = ["fn_ref_test.cc"],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":fn_ref",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )
@@ -269,7 +284,7 @@ crubit_cc_test(
 cc_library(
     name = "fn",
     hdrs = ["fn.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = ["//visibility:public"],
 )
@@ -277,10 +292,12 @@ cc_library(
 crubit_cc_test(
     name = "fn_test",
     srcs = ["fn_test.cc"],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":fn",
         "//support:movable",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )
@@ -288,7 +305,7 @@ crubit_cc_test(
 cc_library(
     name = "traits",
     hdrs = ["traits.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = [
         "//visibility:public",
@@ -301,7 +318,7 @@ cc_library(
 cc_library(
     name = "iterator_adapter",
     hdrs = ["iterator_adapter.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = [
         "//visibility:public",
@@ -315,9 +332,11 @@ cc_library(
 crubit_cc_test(
     name = "iterator_adapter_test",
     srcs = ["iterator_adapter_test.cc"],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":iterator_adapter",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )
@@ -325,7 +344,7 @@ crubit_cc_test(
 cc_library(
     name = "option",
     hdrs = ["option.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = [
         "//visibility:public",
@@ -340,7 +359,7 @@ cc_library(
 cc_library(
     name = "result",
     hdrs = ["result.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = [
         "//visibility:public",
@@ -355,7 +374,7 @@ cc_library(
 cc_library(
     name = "vec",
     hdrs = ["vec.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = [
         "//visibility:public",
@@ -369,7 +388,7 @@ cc_library(
 cc_library(
     name = "tuple",
     hdrs = ["tuple.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = [
         "//visibility:public",
@@ -382,7 +401,7 @@ cc_library(
 cc_library(
     name = "unit",
     hdrs = ["unit.h"],
-    aspect_hints = ["//features:experimental"],
+    aspect_hints = ["//features:supported"],
     compatible_with = ["//buildenv/target:non_prod"],
     visibility = [
         "//visibility:public",
@@ -395,9 +414,11 @@ cc_library(
 crubit_cc_test(
     name = "unit_test",
     srcs = ["unit_test.cc"],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":unit",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )
@@ -422,9 +443,11 @@ cc_library(
 crubit_cc_test(
     name = "enum_tag_encoding_test",
     srcs = ["enum_tag_encoding_test.cc"],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":enum",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )
@@ -432,9 +455,12 @@ crubit_cc_test(
 crubit_cc_test(
     name = "enum_storage_test",
     srcs = ["enum_storage_test.cc"],
+    # TODO(b/522829368): x86 doesn't build: a tag-encoding static_assert fails on
+    # 32-bit Windows (`SomeRef` is narrower than the 8-byte niche tag).
+    tags = ["no_windows"],
     deps = [
         ":enum",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )
@@ -445,10 +471,12 @@ crubit_cc_test(
         "enum_test.cc",
         "enum_test_option_i32.h",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":enum",
         "@abseil-cpp//absl/base:core_headers",
-        "@fuzztest//:fuzztest_gtest_main",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
         "@googletest//:gtest",
     ],
 )

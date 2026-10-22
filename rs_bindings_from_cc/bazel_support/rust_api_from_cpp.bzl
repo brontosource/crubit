@@ -31,11 +31,14 @@ By default, `bazel build` will compile the bindings.
 You can request bindings generation only via `--output_groups=sources`.
 """
 
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:rust_common.bzl", "CrateInfo", "DepInfo")
 load("//cc_bindings_from_rs/bazel_support:providers.bzl", "CcBindingsFromRustInfo")
 load("@rules_crubit//rs_bindings_from_cc/bazel_support:additional_rust_srcs_for_crubit_bindings_aspect_hint.bzl", "additional_rust_srcs_for_crubit_bindings")
 load("@rules_crubit//rs_bindings_from_cc/bazel_support:providers.bzl", "GeneratedBindingsInfo", "RustBindingsFromCcInfo")
 load("@rules_crubit//rs_bindings_from_cc/bazel_support:rust_bindings_from_cc_aspect.bzl", "rust_bindings_from_cc_aspect")
+load("//support/extract_cpp_from_rust:extract_cpp.bzl", "extract_cpp")
 
 def _rust_api_from_cpp_generate_bindings_impl(ctx):
     """Implementation of the `rust_bindings_from_cc` rule."""
@@ -43,17 +46,38 @@ def _rust_api_from_cpp_generate_bindings_impl(ctx):
     variant = ctx.attr.target[RustBindingsFromCcInfo].dep_variant_info
     if not variant or not OutputGroupInfo in ctx.attr.target:
         fail("No bindings generated for target: %s" % ctx.attr.target.label)
+    extra_cc_infos = [dep[CcInfo] for dep in ctx.attr.cpp_api_deps]
+    cc_info = variant.cc_info
+    if extra_cc_infos:
+        cc_info = cc_common.merge_cc_infos(
+            direct_cc_infos = extra_cc_infos,
+            cc_infos = [cc_info],
+        )
     providers = [
         variant.crate_info,
         variant.dep_info,
-        variant.cc_info,
+        cc_info,
         DefaultInfo(files = ctx.attr.target[OutputGroupInfo]["out_compiled"]),
         OutputGroupInfo(sources = ctx.attr.target[OutputGroupInfo]["out"]),
     ]
     if GeneratedBindingsInfo in ctx.attr.target:
         providers.append(ctx.attr.target[GeneratedBindingsInfo])
     if CcBindingsFromRustInfo in ctx.attr.target:
-        providers.append(ctx.attr.target[CcBindingsFromRustInfo])
+        cc_bindings_info = ctx.attr.target[CcBindingsFromRustInfo]
+        if extra_cc_infos:
+            cc_bindings_info = CcBindingsFromRustInfo(
+                cc_info = cc_common.merge_cc_infos(
+                    direct_cc_infos = extra_cc_infos,
+                    cc_infos = [cc_bindings_info.cc_info],
+                ),
+                crate_key = cc_bindings_info.crate_key,
+                headers = cc_bindings_info.headers,
+                features = cc_bindings_info.features,
+                target_denied_features = getattr(cc_bindings_info, "target_denied_features", []),
+                configuration = cc_bindings_info.configuration,
+                transitive_infos = cc_bindings_info.transitive_infos,
+            )
+        providers.append(cc_bindings_info)
     return providers
 
 _rust_api_from_cpp_generate_bindings = rule(
@@ -68,6 +92,10 @@ _rust_api_from_cpp_generate_bindings = rule(
             providers = [RustBindingsFromCcInfo],
             aspects = [rust_bindings_from_cc_aspect],
         ),
+        "cpp_api_deps": attr.label_list(
+            doc = "Additional C++ dependencies propagated to C++ bindings generated from Rust crates that depend on this target.",
+            providers = [CcInfo],
+        ),
     },
 )
 
@@ -79,6 +107,7 @@ def rust_api_from_cpp(
         cpp_srcs = [],
         deps = [],
         link_deps = [],
+        cpp_api_deps = [],
         srcs_mod = "",
         root_namespaces = [],
         generated_cpp_support_deps = [],
@@ -87,6 +116,7 @@ def rust_api_from_cpp(
         types_only = False,
         aliases = {},
         warn_on_raw_cc_deps = True,
+        embedded_cpp = False,
         **kwargs):
     """Generates Rust bindings for a C++ target.
 
@@ -109,11 +139,17 @@ def rust_api_from_cpp(
         `compile_data` attribute of `rust_library`.
       cpp_srcs: Additional C++ source files (e.g. from inline_cpp!). Note: if
         `cpp_srcs` is non-empty, the generated `_rust_api_impl.cc` is compiled
-        textually, without precompiled header modules, which is slower.
+        textually, without precompiled header modules (slower) and without
+        `layering_check` (b/573160050).
         Other than the wrapped library's own headers, headers included by
         `cpp_srcs` should come from `generated_cpp_support_deps`.
       deps: Dependencies for the Rust API.
       link_deps: Native C++ dependencies to link into the Rust library.
+      cpp_api_deps: Additional C++ dependencies propagated to `cpp_api_from_rust`
+        bindings for Rust crates that depend on this target (for example, C++
+        libraries whose headers are referenced via `CRUBIT_ANNOTATE: include_path=...`
+        in `srcs` and cannot be added to `cpp_target` or `<name>.hint` without
+        creating a dependency cycle).
       srcs_mod: Controls which module inside the Rust crate the additional rust sources are added to.
       root_namespaces: List of C++ namespaces to re-export at the root of the generated Rust bindings.
       generated_cpp_support_deps: C++ dependencies of the generated C++ target (e.g. ABI support libraries required by the generated bindings).
@@ -130,6 +166,13 @@ def rust_api_from_cpp(
             The keys can be Rust libraries, or either C++ libraries (e.g. `cc_library`) or their corresponding
             generated Rust bindings (e.g. `rust_api_from_cpp`).
       warn_on_raw_cc_deps: Whether to emit a warning when a direct dependency in `deps` is a raw C++ library without Rust bindings.
+      embedded_cpp: If True, `srcs` may contain `global_cpp!` and `inline_cpp!` blocks. The
+        embedded C++ is extracted and added to `cpp_srcs` (see there for the build cost).
+        `inline_cpp!` in `srcs` fails to compile without it. `global_cpp!` blocks must
+        `#include` every header the embedded C++ uses, including the headers of `cpp_target`.
+        Include only headers of `cpp_target` or `generated_cpp_support_deps`: other headers
+        build today, but will break once `cpp_srcs` is compiled with `layering_check`
+        (b/573160050).
       **kwargs: Additional arguments passed to the underlying rule.
     """
 
@@ -158,6 +201,23 @@ def rust_api_from_cpp(
             for f in crubit_features
         ]
 
+    target_label = "//{}:{}".format(native.package_name(), name)
+
+    # Must match the `target` passed to `extract_cpp`: `inline_cpp!` hashes it into thunk names.
+    crubit_target = target_label if embedded_cpp else ""
+    if embedded_cpp:
+        if not srcs:
+            fail("In rust_api_from_cpp target '%s': `embedded_cpp = True` requires `srcs`." % name)
+        extracted_cpp = name + "_embedded_cpp"
+        extract_cpp(
+            name = extracted_cpp,
+            srcs = srcs,
+            out = extracted_cpp + ".cc",
+            target = target_label,
+            **hint_kwargs
+        )
+        cpp_srcs = cpp_srcs + [":" + extracted_cpp]
+
     hint_name = name + ".hint"
     if not srcs and not compile_data and not cpp_srcs and not deps and not link_deps and not root_namespaces and len(crubit_features) == 1:
         native.alias(
@@ -180,6 +240,7 @@ def rust_api_from_cpp(
             crubit_features = crubit_features,
             aliases = aliases,
             warn_on_raw_cc_deps = warn_on_raw_cc_deps,
+            crubit_target = crubit_target,
             **hint_kwargs
         )
 
@@ -188,5 +249,6 @@ def rust_api_from_cpp(
     _rust_api_from_cpp_generate_bindings(
         name = name,
         target = cpp_target,
+        cpp_api_deps = cpp_api_deps,
         **kwargs
     )

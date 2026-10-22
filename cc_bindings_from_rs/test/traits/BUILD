@@ -20,9 +20,6 @@ package(default_applicable_licenses = ["//:license"])
 rust_library(
     name = "traits",
     srcs = ["traits.rs"],
-    aspect_hints = [
-        "//features:experimental",
-    ],
     edition = "2024",
     proc_macro_deps = [
         "//support:crubit_annotate",
@@ -40,6 +37,8 @@ golden_test(
         "macos",
     ],
     rust_library = "traits",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 cpp_api_from_rust(
@@ -55,6 +54,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":traits_cc_api",
         "@googletest//:gtest_main",
@@ -64,9 +65,6 @@ crubit_cc_test(
 rust_library(
     name = "generic_traits",
     srcs = ["generic_traits.rs"],
-    aspect_hints = [
-        "//features:experimental",
-    ],
     edition = "2024",
     proc_macro_deps = [
         "//support:crubit_annotate",
@@ -90,6 +88,8 @@ golden_test(
         "macos",
     ],
     rust_library = "generic_traits",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 crubit_cc_test(
@@ -99,6 +99,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":generic_traits_cc_api",
         "@googletest//:gtest_main",

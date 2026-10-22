@@ -32,6 +32,7 @@
 #include "absl/strings/strip.h"
 #include "common/annotation_reader.h"
 #include "common/status_macros.h"
+#include "common/string_view_conversion.h"
 #include "lifetime_annotations/type_lifetimes.h"
 #include "rs_bindings_from_cc/ast_convert.h"
 #include "rs_bindings_from_cc/ast_util.h"
@@ -361,7 +362,8 @@ std::string GetProto2MessageRustName(ImportContext& ictx,
   const clang::DeclContext* dc = record_decl.getDeclContext();
   return internal::GetProto2MessageRustNameImpl(
       record_decl.getNameAsString(), [&ictx, dc](absl::string_view prefix) {
-        clang::IdentifierInfo& ii = ictx.ctx_.Idents.get(prefix);
+        clang::IdentifierInfo& ii =
+            ictx.ctx_.Idents.get(StringRefFromStringView(prefix));
         for (clang::NamedDecl* decl : dc->lookup(&ii)) {
           if (auto* outer_record =
                   clang::dyn_cast<clang::CXXRecordDecl>(decl)) {
@@ -946,20 +948,39 @@ bool IsRustMovable(const clang::CXXRecordDecl& record_decl) {
     has_non_deleted_copy_or_move = true;
   }
 
-  // The checks above only cover the *implicit* special members.  The
-  // user-declared ones are checked one by one below, because a class may
-  // declare several copy or move constructors (e.g. both `S(const S&)` and
-  // `S(S&)`) and the `hasTrivial...ForCall` checks above only report whether
-  // *some* of them are trivial for calls.
+  // The checks above only cover the *implicit* special members that have not
+  // been declared yet.  The declared ones are checked one by one below,
+  // because a class may declare several copy or move constructors (e.g. both
+  // `S(const S&)` and `S(S&)`) and the `hasTrivial...ForCall` checks above
+  // only report whether *some* of them are trivial for calls.
+  //
+  // `GetAllConstructors` (rather than `ctors()`) and `getDestructor()` (in
+  // addition to `methods()`) also find special members that live in a merged
+  // ("demoted") definition loaded from another header module.
+  for (const clang::CXXConstructorDecl* ctor :
+       GetAllConstructors(record_decl)) {
+    if (ctor->isDeleted() || ctor->isIneligibleOrNotSelected()) continue;
+    if (!ctor->isCopyOrMoveConstructor()) continue;
+    if (!ctor->isTrivialForCall()) return false;
+    has_non_deleted_copy_or_move = true;
+  }
   for (const clang::CXXMethodDecl* method : record_decl.methods()) {
     if (method->isDeleted() || method->isIneligibleOrNotSelected()) continue;
-
-    if (const auto* ctor = clang::dyn_cast<clang::CXXConstructorDecl>(method);
-        ctor != nullptr && ctor->isCopyOrMoveConstructor()) {
-      if (!method->isTrivialForCall()) return false;
-      has_non_deleted_copy_or_move = true;
-    } else if (clang::isa<clang::CXXDestructorDecl>(method)) {
-      if (!method->isTrivialForCall()) return false;
+    if (clang::isa<clang::CXXDestructorDecl>(method) &&
+        !method->isTrivialForCall()) {
+      return false;
+    }
+  }
+  // `getDestructor()` uses name lookup, which returns the most recent
+  // redeclaration (e.g. an out-of-line definition). Use the canonical
+  // declaration, because only the declaration in the class carries the
+  // trivial-for-call bit (e.g. from `[[clang::trivial_abi]]`).
+  if (const clang::CXXDestructorDecl* dtor = record_decl.getDestructor();
+      dtor != nullptr) {
+    dtor = dtor->getCanonicalDecl();
+    if (!dtor->isDeleted() && !dtor->isIneligibleOrNotSelected() &&
+        !dtor->isTrivialForCall()) {
+      return false;
     }
   }
 
@@ -1383,7 +1404,14 @@ std::unique_ptr<ir_proto::Item> CXXRecordDeclImporter::Import(
   }
 
   ictx_.MarkAsSuccessfullyImported(*record_decl);
-  if (!record_decl->isCompleteDefinition()) {
+  // With precompiled header modules, the definition may come from a module
+  // that was loaded (because the include scanner found an `#include` of its
+  // header), but that isn't imported by the headers of the current target.
+  // Such a definition is not reachable, and the generated C++ code can't use
+  // it, so the record is treated as incomplete. Without modules, every
+  // definition is reachable.
+  if (!record_decl->isCompleteDefinition() ||
+      !ictx_.sema_.hasReachableDefinition(record_decl)) {
     auto item = std::make_unique<ir_proto::Item>();
     auto* incomplete = item->mutable_incomplete_record();
     incomplete->mutable_cc_name()->set_identifier(cc_name);
@@ -1558,7 +1586,7 @@ std::unique_ptr<ir_proto::Item> CXXRecordDeclImporter::Import(
   if (owned_ptr_config.has_value()) {
     owned_ptr_config->WriteToProto(*record->mutable_owned_ptr_config());
   }
-  record->set_source_loc(ictx_.ConvertSourceLocation(source_loc, nullptr));
+  *record->mutable_decl_loc() = ictx_.ConvertDeclLocation(source_loc, nullptr);
   for (auto& base : GetUnambiguousPublicBases(*record_decl)) {
     *record->add_unambiguous_public_bases() = std::move(base);
   }
@@ -1708,17 +1736,38 @@ std::vector<ir_proto::Field> CXXRecordDeclImporter::ImportFields(
     }
 
     std::optional<std::string> deprecated;
-    absl::StatusOr<std::optional<std::string>> unknown_attr =
-        CollectUnknownAttrs(*field_decl, [&](const clang::Attr& attr) {
-          if (auto* deprecated_attr =
-                  clang::dyn_cast<clang::DeprecatedAttr>(&attr)) {
-            deprecated.emplace(deprecated_attr->getMessage());
-            return true;
-          } else if (clang::isa<clang::UnusedAttr>(attr)) {
-            return true;
-          }
-          return false;
-        });
+    absl::StatusOr<std::optional<std::string>> unknown_attr;
+    // Rust does not support per-field `#[repr(align(N))]` or alignment on
+    // `type` aliases, so fields with explicit alignment must be replaced with
+    // opaque byte blobs (with padding up to their Clang AST offset) to preserve
+    // struct layout. We return an `absl::Status` error here rather than relying
+    // on `CollectUnknownAttrs` because:
+    // 1. Targets with `:experimental` enabled ignore `Ok(Some(attr))` from
+    //    `CollectUnknownAttrs`, whereas an `Err` status unconditionally forces
+    //    opaque-blob fallback in `field_rs_type_kind_for_layout`.
+    // 2. Alignment inherited from a `typedef` or `using` alias is recorded on
+    //    the field's `TypeInfo` (`RequiredByTypedef`), not in `field_decl`'s
+    //    attribute list.
+    if (field_decl->hasAttr<clang::AlignedAttr>() ||
+        ictx_.ctx_.getTypeInfo(field_decl->getType()).AlignRequirement ==
+            clang::AlignRequirementKind::RequiredByTypedef) {
+      unknown_attr = absl::UnimplementedError(
+          "Fields with explicit alignment attributes are not supported");
+    } else {
+      unknown_attr =
+          CollectUnknownAttrs(*field_decl, [&](const clang::Attr& attr) {
+            if (auto* deprecated_attr =
+                    clang::dyn_cast<clang::DeprecatedAttr>(&attr)) {
+              deprecated.emplace(deprecated_attr->getMessage());
+              return true;
+            } else if (clang::isa<clang::UnusedAttr>(attr)) {
+              return true;
+            } else if (clang::isa<clang::ExplicitInitAttr>(attr)) {
+              return true;
+            }
+            return false;
+          });
+    }
 
     ir_proto::Field proto_field;
     if (auto rust_id = GetTranslatedFieldName(field_decl);

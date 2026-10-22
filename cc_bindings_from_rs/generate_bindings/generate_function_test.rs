@@ -906,7 +906,7 @@ fn test_format_item_with_kythe_annotations() {
     test_format_item_with_features(
         test_src,
         "fn_with_provenance",
-        crubit_feature::CrubitFeature::Experimental | crubit_feature::CrubitFeature::Supported,
+        crubit_feature::CrubitFeature::Supported,
         /* with_kythe_annotations= */ true,
         |result| {
             let result = result.unwrap().unwrap();
@@ -2895,7 +2895,7 @@ fn test_unmovable_self_with_unsatisfied_copy_where_bound_in_method() {
             quote! {
                 struct ... Unmovable final {
                     ...
-                    __COMMENT__ "Error generating bindings for associated function `Unmovable::<'a>::consume` defined at <crubit_unittests.rs>;l=11: Can't pass `self` by value for an unmovable type without a move constructor."
+                    __COMMENT__ "Error generating bindings for associated function `Unmovable::<'a>::consume`: Can't pass `self` by value for an unmovable type without a move constructor."
                     ...
                 };
             }

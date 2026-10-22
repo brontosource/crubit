@@ -32,6 +32,7 @@
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/AST/DeclarationName.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/RecursiveASTVisitor.h"
@@ -226,7 +227,7 @@ absl::StatusOr<std::optional<std::string>> CollectUnknownAttrs(
       name_buf = attr->getNormalizedFullName();
       name = name_buf;
     } else {
-      name = attr->getSpelling();
+      name = StringViewFromStringRef(attr->getSpelling());
     }
     if (ignored_attr_names.contains(name)) {
       continue;
@@ -345,7 +346,7 @@ absl::StatusOr<absl::string_view> EvaluateAsStringLiteral(
     return absl::InvalidArgumentError("expression is not a string literal");
   }
 
-  return strlit->getString();
+  return StringViewFromStringRef(strlit->getString());
 }
 
 absl::StatusOr<ClangLifetimeAnnotations>
@@ -479,7 +480,7 @@ bool IsProto2Message(const clang::Decl& decl) {
   };
   // `google::protobuf::Message` derives from `google::protobuf::MessageLite`, but it is the
   // abstract base class of all full-runtime messages, not a generated message.
-  // (This mirrors `proto2::is_concrete_proto_message`.)
+  // (This mirrors `google::protobuf::is_concrete_proto_message`.)
   if (has_qualified_name(cxx_record_decl, "google::protobuf::Message")) {
     return false;
   }
@@ -785,6 +786,30 @@ absl::flat_hash_set<absl::string_view> GetIgnoredAttrs(
     }
   }
   return ignored_attr_names;
+}
+
+std::vector<clang::CXXConstructorDecl*> GetAllConstructors(
+    const clang::CXXRecordDecl& record) {
+  std::vector<clang::CXXConstructorDecl*> result;
+  absl::flat_hash_set<const clang::Decl*> seen;
+  for (clang::CXXConstructorDecl* ctor : record.ctors()) {
+    if (seen.insert(ctor->getCanonicalDecl()).second) result.push_back(ctor);
+  }
+  clang::ASTContext& ast_context = record.getASTContext();
+  clang::DeclarationName ctor_name =
+      ast_context.DeclarationNames.getCXXConstructorName(
+          ast_context.getCanonicalTagType(&record));
+  for (clang::NamedDecl* decl : record.lookup(ctor_name)) {
+    auto* ctor = clang::dyn_cast<clang::CXXConstructorDecl>(decl);
+    if (ctor == nullptr) continue;  // E.g. a constructor template.
+    // Lookup returns the most recent redeclaration (e.g. an out-of-line
+    // definition); return the canonical one, like `ctors()` would, because
+    // only the declaration in the class carries some of the properties (e.g.
+    // trivial-for-call from `[[clang::trivial_abi]]`).
+    ctor = ctor->getCanonicalDecl();
+    if (seen.insert(ctor).second) result.push_back(ctor);
+  }
+  return result;
 }
 
 }  // namespace crubit

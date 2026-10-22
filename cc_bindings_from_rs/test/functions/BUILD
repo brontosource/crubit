@@ -22,7 +22,7 @@ rust_library(
     testonly = 1,
     srcs = ["functions.rs"],
     aspect_hints = [
-        "//features:experimental",
+        "//features:ctor_plain_values",
     ],
     edition = "2024",
     proc_macro_deps = [
@@ -50,6 +50,8 @@ golden_test(
         "macos",
     ],
     rust_library = "functions",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 crubit_cc_test(
@@ -59,6 +61,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":functions_cc_api",
         "//support/rs_std:char",

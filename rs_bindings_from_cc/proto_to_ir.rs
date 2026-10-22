@@ -24,6 +24,14 @@ impl<'pb> TryFrom<::ir_rust_proto::HeaderNameView<'pb>> for HeaderName<'pb> {
     }
 }
 
+impl<'pb> TryFrom<::ir_rust_proto::DeclLocationView<'pb>> for DeclLocation<'pb> {
+    type Error = Error;
+    fn try_from(proto: ::ir_rust_proto::DeclLocationView<'pb>) -> Result<Self> {
+        proto.validate()?;
+        Ok(proto.to_ir())
+    }
+}
+
 impl<'pb> TryFrom<::ir_rust_proto::IdentifierView<'pb>> for Identifier<'pb> {
     type Error = Error;
     fn try_from(proto: ::ir_rust_proto::IdentifierView<'pb>) -> Result<Self> {
@@ -221,6 +229,9 @@ impl TryFrom<::ir_rust_proto::MemberFuncSemanticView<'_>> for MemberFuncSemantic
                     type_: CcType::try_from(g.r#type())?,
                     offset: g.offset() as usize,
                 }))
+            }
+            ::ir_rust_proto::member_func_semantic::VariantOneof::Constructor(_) => {
+                Ok(MemberFuncSemantic::Constructor)
             }
             _ => bail!("unmapped VariantOneof: {:?}", proto.variant()),
         }

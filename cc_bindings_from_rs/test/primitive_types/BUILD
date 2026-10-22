@@ -18,9 +18,6 @@ rust_library(
     name = "primitive_types",
     testonly = 1,
     srcs = ["primitive_types.rs"],
-    aspect_hints = [
-        "//features:experimental",
-    ],
     edition = "2024",
     deps = [
         "//support/ffi_11",
@@ -44,6 +41,8 @@ golden_test(
         "macos",
     ],
     rust_library = "primitive_types",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 crubit_cc_test(
@@ -53,6 +52,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":primitive_types_cc_api",
         "@googletest//:gtest_main",

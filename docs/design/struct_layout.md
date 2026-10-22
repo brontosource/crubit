@@ -42,10 +42,9 @@ Rust does not guarantee that distinct elements have distinct addresses.)
 In C++, in some circumstances, the requirement that objects do not overlap is
 relaxed: base classes and `[[no_unique_address]]` member variables can have
 subsequent objects live inside of their tail padding. The most famous instance
-of this is the
-[empty base class optimization (EBCO)](https://en.cppreference.com/w/cpp/language/ebo):
-a base class with no data members is permitted to take up zero space inside of
-derived classes.
+of this is the [empty base class optimization
+(EBCO)](https://en.cppreference.com/w/cpp/language/ebo): a base class with no
+data members is permitted to take up zero space inside of derived classes.
 
 NOTE: This has other, non-layout consequences for Rust: for example, it is not
 safe to obtain two `&mut` references to overlapping objects, unless they are of
@@ -76,7 +75,7 @@ class A {
 
 struct B final : A {
   int8_t z;
-}
+};
 ```
 
 In memory, this may be laid out as so:
@@ -97,11 +96,11 @@ The correct representation for `B`, in Rust, is something like this:
 #[repr(C)]
 #[repr(align(2))] // match the alignment of the int16_t variable.
 struct B {
-  // The We don't use a field of type `A`, because it would have a size of 4,
+  // We don't use a field of type `A`, because it would have a size of 4,
   // and Rust wouldn't permit `z` to live inside of it.
   // Nor do we align the array, for the same reason -- correct alignment must be
   // achieved via the repr(align(2)) at the top.
-  __non_field_data : [MaybeUninit<u8>; 3];
+  __non_field_data: [MaybeUninit<u8>; 3],
   pub z: i8,
 }
 ```

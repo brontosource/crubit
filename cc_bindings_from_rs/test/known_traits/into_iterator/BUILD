@@ -25,9 +25,6 @@ rust_library(
     name = "into_iterator_rust",
     testonly = 1,
     srcs = ["into_iterator.rs"],
-    aspect_hints = [
-        "//features:experimental",
-    ],
     edition = "2024",
     deps = [
         "//support:bridge_rust",
@@ -45,6 +42,8 @@ golden_test(
         "macos",
     ],
     rust_library = "into_iterator_rust",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 cpp_api_from_rust(
@@ -60,6 +59,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":into_iterator_cc_api",
         "@googletest//:gtest_main",

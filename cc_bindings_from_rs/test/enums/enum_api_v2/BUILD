@@ -18,7 +18,6 @@ rust_library(
     srcs = ["enum_api_v2.rs"],
     aspect_hints = [
         "//features:enum_api_v2",
-        "//features:experimental",
     ],
     edition = "2024",
 )
@@ -32,6 +31,8 @@ cpp_api_from_rust(
 crubit_cc_test(
     name = "enum_api_v2_test",
     srcs = ["enum_api_v2_test.cc"],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":enum_api_v2_cc_api",
         "//support/rs_std:enum",

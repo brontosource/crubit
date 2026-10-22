@@ -21,7 +21,6 @@ rust_library(
     name = "tuples",
     srcs = ["tuples.rs"],
     aspect_hints = [
-        "//features:experimental",
         "//features:movable_return_values",
     ],
     edition = "2024",
@@ -41,6 +40,8 @@ golden_test(
         "macos",
     ],
     rust_library = "tuples",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 cpp_api_from_rust(
@@ -56,6 +57,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":tuples_cc_api",
         "//support/rs_std:rs_alloc",

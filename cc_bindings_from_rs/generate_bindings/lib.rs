@@ -11,7 +11,6 @@ extern crate rustc_ast;
 #[rustversion::since(2026-09-27)]
 extern crate rustc_attr_ir;
 extern crate rustc_attr_parsing;
-extern crate rustc_data_structures;
 extern crate rustc_hir;
 extern crate rustc_infer;
 extern crate rustc_middle;
@@ -34,7 +33,8 @@ pub use database::{
 };
 use error_report::{anyhow, bail, ErrorReporting, ReportFatalError};
 use format_type::{
-    crubit_abi_type_from_ty, format_cc_ident, format_cc_ident_symbol, format_top_level_ns_for_crate,
+    crubit_abi_type_from_ty, format_cc_ident, format_cc_ident_symbol,
+    format_top_level_ns_for_crate, format_with_cc_body,
 };
 use generate_comment::{generate_deprecated_tag, generate_doc_comment};
 use generate_ctor::{
@@ -73,11 +73,6 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
-
-/// Implementation of `BindingsGenerator::support_header`.
-fn support_header<'tcx>(db: &BindingsGenerator<'tcx>, suffix: &'tcx str) -> CcInclude {
-    CcInclude::support_lib_header(db.crubit_support_path_format(), suffix.into())
-}
 
 fn check_unbindable_type(db: &BindingsGenerator, def_id: DefId) {
     let tcx = db.tcx();
@@ -233,7 +228,6 @@ fn source_crate_num(db: &BindingsGenerator<'_>) -> CrateNum {
 
 fn specializations<'tcx>(db: &crate::BindingsGenerator<'tcx>) -> Rc<[CppTypeSpecialization<'tcx>]> {
     let tcx = db.tcx();
-
     // Visit candidate aliases in a stable order: `format_type` uses the first specialization that
     // matches a type, and `HashMap` iteration order changes from run to run. Sort by the alias
     // itself, not by the type it's an alias of, so that the order of aliases of the same type, and
@@ -280,6 +274,7 @@ fn specializations<'tcx>(db: &crate::BindingsGenerator<'tcx>) -> Rc<[CppTypeSpec
             );
             let ty = tcx.erase_and_anonymize_regions(ty);
             Some(CppTypeSpecialization {
+                def_id,
                 ty,
                 cpp_type: Rc::from(cpp_type.as_str()),
                 include_paths: attrs.include_paths.iter().map(|s| Rc::from(s.as_str())).collect(),
@@ -327,7 +322,6 @@ pub fn new_database<'db>(
         ignore_symbols_from_files,
         specializations,
         source_crate_num,
-        support_header,
         supported_traits,
         symbol_unqualified_name,
         symbol_canonical_name,
@@ -487,44 +481,6 @@ pub fn generate_bindings(db: &BindingsGenerator) -> Result<BindingsTokens> {
     Ok(BindingsTokens { cc_api, cc_api_impl })
 }
 
-fn format_with_cc_body(
-    db: &BindingsGenerator,
-    ns: &NamespaceQualifier,
-    mut tokens: TokenStream,
-    attributes: Vec<TokenStream>,
-) -> Result<TokenStream> {
-    if tokens.is_empty() {
-        return Ok(quote! {});
-    }
-    let mut namespaces = ns.parts().map(|s| format_cc_ident(db, s)).collect::<Result<Vec<_>>>()?;
-
-    // Nested namespace syntax does not accept attributes (see b/445613694), so we have to split out
-    // the with-attribute decl to contain only the trailing namespace.
-    // TODO: b/455882065 - Figure out the correct way to handle top level aliases of deprecated
-    // definitions and remove this workaround.
-    if !attributes.is_empty() && !namespaces.is_empty() {
-        let innermost_namespace = namespaces
-            .pop()
-            .expect("there should be at least one namespace if there are attributes");
-        tokens = quote! {
-            __NEWLINE__
-            namespace #(#attributes)* #innermost_namespace { __NEWLINE__
-                #tokens __NEWLINE__
-            } __NEWLINE__
-        };
-    }
-
-    if !namespaces.is_empty() {
-        tokens = quote! {
-            __NEWLINE__
-            namespace #(#namespaces)::* { __NEWLINE__
-                #tokens __NEWLINE__
-            } __NEWLINE__
-        };
-    }
-    Ok(tokens)
-}
-
 /// Implementation of `BindingsGenerator::public_paths_by_def_id`.
 fn public_paths_by_def_id(
     db: &BindingsGenerator<'_>,
@@ -628,9 +584,7 @@ fn public_paths_by_def_id(
                     });
                 // If our generics do not match for our type alias, do not consider them a public
                 // path for their underlying type.
-                if generics_match
-                    || crubit_attr::get_attrs(tcx, def_id).unwrap().specializes_cpp_type
-                {
+                if generics_match {
                     type_alias_def_id = Some(def_id);
                     def_id = def.did();
                 }
@@ -738,14 +692,29 @@ fn all_public_paths_by_def_id(db: &BindingsGenerator<'_>) -> HashMap<DefId, Publ
     // TODO(b/458768435): LOCAL_CRATE is not included in list of `used_crates`, so while we still
     // have `--enable-rmeta-interface` (and some users that are not on the rmeta interface) we
     // need to manually add it to the list of considered crates.
-    for krate in
-        std::iter::once(LOCAL_CRATE).chain(tcx.used_crates(()).iter().cloned()).filter(|&krate|
+    for krate in std::iter::once(LOCAL_CRATE).chain(tcx.used_crates(()).iter().cloned()) {
         // Check if our krate can be imported (and so should provide public paths for DefIds).
-        krate == db.source_crate_num()
-            || db.crate_name_to_include_paths().contains_key(&Rc::from(tcx.crate_name(krate).as_str())))
-    {
+        let has_crate_header = krate == db.source_crate_num()
+            || db
+                .crate_name_to_include_paths()
+                .contains_key(&Rc::from(tcx.crate_name(krate).as_str()));
+        let is_direct_extern = krate != LOCAL_CRATE
+            && tcx
+                .extern_crate(krate)
+                .is_some_and(|ext| ext.dependency_of == db.source_crate_num());
+        if !has_crate_header && !is_direct_extern {
+            continue;
+        }
         let public_paths = db.public_paths_by_def_id(krate);
         for (def_id, mut paths) in public_paths {
+            if !has_crate_header {
+                let Ok(attrs) = crubit_attr::get_attrs(tcx, def_id) else {
+                    continue;
+                };
+                if attrs.cpp_type.is_none() && !attrs.specializes_cpp_type {
+                    continue;
+                }
+            }
             use std::collections::hash_map::Entry;
             match out.entry(def_id) {
                 Entry::Vacant(vacant) => {
@@ -1548,6 +1517,9 @@ fn formatted_items_in_crate<'tcx>(
     defs_in_crate
         .into_iter()
         .filter_map(|(def_id, paths)| {
+            if crubit_attr::get_attrs(tcx, def_id).unwrap().specializes_cpp_type {
+                return None;
+            }
             let mut snippets = None;
             let canonical_name = db.symbol_canonical_name(def_id).ok()?;
             let aliases = if canonical_name.krate_num == db.source_crate_num() {
@@ -1580,48 +1552,27 @@ fn formatted_items_in_crate<'tcx>(
 }
 
 /// Key used to sort template specializations.
-/// Hash is produced by
-#[derive(Debug, Clone)]
-struct NodeSortKey {
-    hash: u64,
+#[derive(Clone)]
+struct NodeSortKey<'tcx> {
+    tcx: TyCtxt<'tcx>,
     path_str: String,
+    def_id: Option<DefId>,
 }
-impl NodeSortKey {
-    fn from_def_id(tcx: TyCtxt<'_>, def_id: DefId) -> Self {
-        let path_str = tcx.def_path_str(def_id);
-        let hash = tcx.def_path_hash(def_id).local_hash().as_u64();
-        NodeSortKey { hash, path_str }
+impl<'tcx> NodeSortKey<'tcx> {
+    fn from_def_id(tcx: TyCtxt<'tcx>, def_id: DefId) -> Self {
+        NodeSortKey { tcx, path_str: tcx.def_path_str(def_id), def_id: Some(def_id) }
     }
 
-    fn new<'tcx>(tcx: TyCtxt<'tcx>, spec: &TemplateSpecialization<'tcx>) -> Self {
+    fn new(tcx: TyCtxt<'tcx>, spec: &TemplateSpecialization<'tcx>) -> Self {
         match spec {
             TemplateSpecialization::Adt(e) => {
                 let ty = e.self_ty_rs;
-
-                #[cfg_accessible(rustc_data_structures::stable_hash)]
-                use rustc_data_structures::stable_hash;
-                #[cfg_accessible(rustc_data_structures::stable_hasher)]
-                use rustc_data_structures::stable_hasher as stable_hash;
-
-                let hash = tcx.with_stable_hashing_context(|mut hcx| {
-                    let mut hasher = stable_hash::StableHasher::new();
-
-                    #[cfg_accessible(stable_hash::HashStable)]
-                    stable_hash::HashStable::hash_stable(&ty, &mut hcx, &mut hasher);
-                    #[cfg_accessible(stable_hash::StableHash)]
-                    stable_hash::StableHash::stable_hash(&ty, &mut hcx, &mut hasher);
-
-                    hasher
-                        .finish::<rustc_data_structures::fingerprint::Fingerprint>()
-                        .to_smaller_hash()
-                        .as_u64()
-                });
-
                 Self {
-                    hash,
+                    tcx,
                     // Ty's Display implementation uses FmtPrinter to pretty print the type, so this
                     // will be a reasonable representation of the underlying tree structure.
                     path_str: ty.to_string(),
+                    def_id: ty.ty_adt_def().map(|adt| adt.did()),
                 }
             }
             TemplateSpecialization::TraitImpl(t) => Self::from_def_id(tcx, t.trait_impl),
@@ -1631,37 +1582,37 @@ impl NodeSortKey {
                 // type-trait impl combination, auto trait impls do not have this, so we construct
                 // a path string manually.
                 let path_str = format!("{} as !{trait_name}", tcx.def_path_str(u.self_def_id));
-                let hash = tcx.def_path_hash(u.self_def_id).local_hash().as_u64();
-                NodeSortKey { hash, path_str }
+                NodeSortKey { tcx, path_str, def_id: Some(u.self_def_id) }
             }
             TemplateSpecialization::StdHash(h) => {
                 let path_str = format!("{} as std::hash::Hash", h.self_ty);
-                let hash = if let Some(adt) = h.self_ty.ty_adt_def() {
-                    tcx.def_path_hash(adt.did()).local_hash().as_u64()
-                } else {
-                    0
-                };
-                NodeSortKey { hash, path_str }
+                let def_id = h.self_ty.ty_adt_def().map(|adt| adt.did());
+                NodeSortKey { tcx, path_str, def_id }
             }
         }
     }
 }
-impl Ord for NodeSortKey {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.path_str.cmp(&other.path_str).then_with(|| self.hash.cmp(&other.hash))
+impl<'tcx> PartialEq for NodeSortKey<'tcx> {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
     }
 }
-impl PartialOrd for NodeSortKey {
+impl<'tcx> Eq for NodeSortKey<'tcx> {}
+impl<'tcx> PartialOrd for NodeSortKey<'tcx> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
-impl PartialEq for NodeSortKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.hash == other.hash && self.path_str == other.path_str
+impl<'tcx> Ord for NodeSortKey<'tcx> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.path_str.cmp(&other.path_str).then_with(|| match (self.def_id, other.def_id) {
+            (Some(lhs), Some(rhs)) => stable_def_id_cmp(self.tcx, lhs, rhs),
+            (None, Some(_)) => Ordering::Less,
+            (Some(_), None) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
+        })
     }
 }
-impl Eq for NodeSortKey {}
 
 /// Formats all public items from the Rust crate being compiled.
 fn generate_crate(db: &BindingsGenerator) -> Result<BindingsTokens> {
@@ -1811,7 +1762,7 @@ fn generate_crate(db: &BindingsGenerator) -> Result<BindingsTokens> {
                 })
                 .collect::<Vec<_>>();
 
-            let spec_keys: HashMap<&TemplateSpecialization<'_>, NodeSortKey> =
+            let spec_keys: HashMap<&TemplateSpecialization<'_>, NodeSortKey<'_>> =
                 specializations.keys().map(|spec| (spec, NodeSortKey::new(tcx, spec))).collect();
 
             toposort::toposort(nodes, deps, move |lhs_id, rhs_id| {

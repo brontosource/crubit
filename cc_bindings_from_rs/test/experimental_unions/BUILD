@@ -17,9 +17,6 @@ rust_library(
     name = "unions",
     testonly = 1,
     srcs = ["unions.rs"],
-    aspect_hints = [
-        "//features:experimental",
-    ],
     edition = "2024",
 )
 
@@ -36,6 +33,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":unions_cc_api",
         "@googletest//:gtest_main",

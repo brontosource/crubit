@@ -17,9 +17,6 @@ package(default_applicable_licenses = ["//:license"])
 rust_library(
     name = "function_pointers",
     srcs = ["function_pointers.rs"],
-    aspect_hints = [
-        "//features:experimental",
-    ],
     edition = "2024",
     proc_macro_deps = ["//support:crubit_annotate"],
 )
@@ -35,6 +32,8 @@ golden_test(
         "macos",
     ],
     rust_library = "function_pointers",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 cpp_api_from_rust(
@@ -50,6 +49,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":function_pointers_cc_api",
         "@googletest//:gtest_main",

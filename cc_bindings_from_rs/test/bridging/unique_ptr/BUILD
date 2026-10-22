@@ -23,14 +23,16 @@ crubit_test_cc_library(
     aspect_hints = [
         ":test_helpers_rust.hint",
     ],
-    deps = ["//support:annotations"],
+    deps = [
+        "//support:annotations",
+        "@abseil-cpp//absl/base:nullability",
+    ],
 )
 
 rust_api_from_cpp(
     name = "test_helpers_rust",
     testonly = 1,
     cpp_target = ":test_helpers",
-    crubit_features = ["experimental"],
 )
 
 rust_library(
@@ -57,6 +59,12 @@ cpp_api_from_rust(
 crubit_cc_test(
     name = "unique_ptr_test",
     srcs = ["unique_ptr_test.cc"],
+    # `cc_std` (the `rs_bindings_from_cc` aspect) doesn't support Windows yet (b/561578105).
+    # TODO(b/575815022): Re-enable once `cc_std` links on macOS.
+    tags = [
+        "no_macos",
+        "no_windows",
+    ],
     deps = [
         ":unique_ptr_cc_api",
         "@googletest//:gtest_main",
@@ -88,6 +96,12 @@ cpp_api_from_rust(
 crubit_cc_test(
     name = "nullable_test",
     srcs = ["nullable_test.cc"],
+    # `cc_std` (the `rs_bindings_from_cc` aspect) doesn't support Windows yet (b/561578105).
+    # TODO(b/575815022): Re-enable once `cc_std` links on macOS.
+    tags = [
+        "no_macos",
+        "no_windows",
+    ],
     deps = [
         ":nullable_cc_api",
         ":test_helpers",

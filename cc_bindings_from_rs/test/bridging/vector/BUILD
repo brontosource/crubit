@@ -30,7 +30,6 @@ rust_api_from_cpp(
     name = "test_helpers_rust",
     testonly = 1,
     cpp_target = ":test_helpers",
-    crubit_features = ["experimental"],
 )
 
 rust_library(
@@ -55,6 +54,12 @@ cpp_api_from_rust(
 crubit_cc_test(
     name = "vector_test",
     srcs = ["vector_test.cc"],
+    # `cc_std` (the `rs_bindings_from_cc` aspect) doesn't support Windows yet (b/561578105).
+    # TODO(b/575815022): Re-enable once `cc_std` links on macOS.
+    tags = [
+        "no_macos",
+        "no_windows",
+    ],
     deps = [
         ":test_helpers",
         ":vector_cc_api",

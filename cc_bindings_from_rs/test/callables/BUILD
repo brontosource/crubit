@@ -23,7 +23,6 @@ rust_library(
     name = "callables",
     srcs = ["callables.rs"],
     aspect_hints = [
-        "//features:experimental",
         "//features:movable_return_values",
     ],
     edition = "2024",
@@ -43,6 +42,8 @@ golden_test(
         "macos",
     ],
     rust_library = "callables",
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
 )
 
 cpp_api_from_rust(
@@ -58,6 +59,8 @@ crubit_cc_test(
         "android",
         "ios",
     ],
+    # TODO(b/522829368): remove `no_windows` to enable.
+    tags = ["no_windows"],
     deps = [
         ":callables_cc_api",
         "@googletest//:gtest_main",

@@ -16,8 +16,6 @@ flagset::flags! {
     pub enum CrubitFeature : u64 {
         Supported,
 
-        Wrapper,
-
         /// Enable support for forward-declared types: b/489120100
         /// We intend for this feature to be turned on by default.
         ForwardDeclarations,
@@ -135,6 +133,14 @@ flagset::flags! {
         /// `T x = f();` keeps compiling, and `g(f())` works when `g` takes `rs::Movable<T>`.
         /// Only affects cpp_api_from_rust.
         MovableReturnValues,
+
+        /// Implement `Eq` and `Ord` for C++ types whose `operator<=>` returns
+        /// `std::strong_ordering`. Only affects rust_api_from_cpp.
+        StrongOrderingTraits,
+
+        /// Generate Rust bindings for constant-size C-style arrays (`T[N]`) as `[T; N]` when
+        /// layout-compatible, instead of an opaque byte blob (b/575922365).
+        ConstantArrays,
     }
 }
 
@@ -147,7 +153,6 @@ impl CrubitFeature {
     pub fn short_name(&self) -> &'static str {
         match self {
             Self::Supported => "supported",
-            Self::Wrapper => "wrapper",
             Self::ForwardDeclarations => "forward_declare",
             Self::Types => "types",
             Self::Experimental => "experimental",
@@ -181,6 +186,8 @@ impl CrubitFeature {
             Self::InheritedFriendOperators => "inherited_friend_operators",
             Self::UnsafeTemplateParams => "unsafe_template_params",
             Self::MovableReturnValues => "movable_return_values",
+            Self::StrongOrderingTraits => "strong_ordering_traits",
+            Self::ConstantArrays => "constant_arrays",
         }
     }
 
@@ -190,7 +197,6 @@ impl CrubitFeature {
     pub fn aspect_hint(&self) -> &'static str {
         match self {
             Self::Supported => "//features:supported",
-            Self::Wrapper => "//features:wrapper",
             Self::ForwardDeclarations => "//features:forward_declare",
             Self::Types => "//features:types",
             Self::Experimental => "//features:experimental",
@@ -234,6 +240,8 @@ impl CrubitFeature {
             }
             Self::UnsafeTemplateParams => "//features:unsafe_template_params",
             Self::MovableReturnValues => "//features:movable_return_values",
+            Self::StrongOrderingTraits => "//features:strong_ordering_traits",
+            Self::ConstantArrays => "//features:constant_arrays",
         }
     }
 }
@@ -272,7 +280,6 @@ pub fn named_features(name: &[u8]) -> Option<flagset::FlagSet<CrubitFeature>> {
         b"supported" => {
             CrubitFeature::Supported | CrubitFeature::Types | CrubitFeature::ImplCxxExternType
         }
-        b"wrapper" => CrubitFeature::Wrapper | CrubitFeature::ForwardDeclarations,
         b"forward_declare" => CrubitFeature::ForwardDeclarations.into(),
         b"types" => CrubitFeature::Types | CrubitFeature::ImplCxxExternType,
         b"experimental" => CrubitFeature::Experimental.into(),
@@ -306,6 +313,8 @@ pub fn named_features(name: &[u8]) -> Option<flagset::FlagSet<CrubitFeature>> {
         b"inherited_friend_operators" => CrubitFeature::InheritedFriendOperators.into(),
         b"unsafe_template_params" => CrubitFeature::UnsafeTemplateParams.into(),
         b"movable_return_values" => CrubitFeature::MovableReturnValues.into(),
+        b"strong_ordering_traits" => CrubitFeature::StrongOrderingTraits.into(),
+        b"constant_arrays" => CrubitFeature::ConstantArrays.into(),
         _ => return None,
         // importer.cc: make sure the logic for the "all" feature still makes sense: b/530193579
         // LINT.ThenChange(
@@ -489,12 +498,25 @@ mod tests {
     }
 
     #[gtest]
+    fn test_serialized_crubit_feature_strong_ordering_traits() {
+        let SerializedCrubitFeature(features) =
+            serde_json::from_str("\"strong_ordering_traits\"").unwrap();
+        assert_eq!(features, CrubitFeature::StrongOrderingTraits);
+    }
+
+    #[gtest]
+    fn test_serialized_crubit_feature_constant_arrays() {
+        let SerializedCrubitFeature(features) =
+            serde_json::from_str("\"constant_arrays\"").unwrap();
+        assert_eq!(features, CrubitFeature::ConstantArrays);
+    }
+
+    #[gtest]
     fn test_serialized_crubit_feature_all() {
         let SerializedCrubitFeature(features) = serde_json::from_str("\"all\"").unwrap();
         assert_eq!(
             features,
             CrubitFeature::Supported
-                | CrubitFeature::Wrapper
                 | CrubitFeature::Types
                 | CrubitFeature::Experimental
                 | CrubitFeature::AssumeLifetimes
@@ -509,6 +531,8 @@ mod tests {
                 | CrubitFeature::ThunklessAccessors
                 | CrubitFeature::ImplCxxExternType
                 | CrubitFeature::InheritedFriendOperators
+                | CrubitFeature::StrongOrderingTraits
+                | CrubitFeature::ConstantArrays
         );
     }
 
@@ -537,7 +561,6 @@ mod tests {
         assert_eq!(
             features,
             CrubitFeature::Supported
-                | CrubitFeature::Wrapper
                 | CrubitFeature::Types
                 | CrubitFeature::Experimental
                 | CrubitFeature::AssumeLifetimes
@@ -552,6 +575,8 @@ mod tests {
                 | CrubitFeature::ThunklessAccessors
                 | CrubitFeature::ImplCxxExternType
                 | CrubitFeature::InheritedFriendOperators
+                | CrubitFeature::StrongOrderingTraits
+                | CrubitFeature::ConstantArrays
         );
     }
 
@@ -562,7 +587,6 @@ mod tests {
         assert_eq!(
             features,
             CrubitFeature::Supported
-                | CrubitFeature::Wrapper
                 | CrubitFeature::Types
                 | CrubitFeature::Experimental
                 | CrubitFeature::AssumeLifetimes
@@ -577,6 +601,8 @@ mod tests {
                 | CrubitFeature::ThunklessAccessors
                 | CrubitFeature::ImplCxxExternType
                 | CrubitFeature::InheritedFriendOperators
+                | CrubitFeature::StrongOrderingTraits
+                | CrubitFeature::ConstantArrays
         );
     }
 
@@ -589,7 +615,6 @@ mod tests {
         assert_eq!(
             features,
             CrubitFeature::Supported
-                | CrubitFeature::Wrapper
                 | CrubitFeature::Types
                 | CrubitFeature::Experimental
                 | CrubitFeature::AssumeThisLifetimes
@@ -603,6 +628,8 @@ mod tests {
                 | CrubitFeature::ThunklessAccessors
                 | CrubitFeature::ImplCxxExternType
                 | CrubitFeature::InheritedFriendOperators
+                | CrubitFeature::StrongOrderingTraits
+                | CrubitFeature::ConstantArrays
         );
     }
 
@@ -615,7 +642,6 @@ mod tests {
         assert_eq!(
             features,
             CrubitFeature::Supported
-                | CrubitFeature::Wrapper
                 | CrubitFeature::Types
                 | CrubitFeature::Experimental
                 | CrubitFeature::AssumeLifetimes
@@ -629,6 +655,8 @@ mod tests {
                 | CrubitFeature::ThunklessAccessors
                 | CrubitFeature::ImplCxxExternType
                 | CrubitFeature::InheritedFriendOperators
+                | CrubitFeature::StrongOrderingTraits
+                | CrubitFeature::ConstantArrays
         );
     }
 
@@ -641,7 +669,6 @@ mod tests {
         assert_eq!(
             features,
             CrubitFeature::Supported
-                | CrubitFeature::Wrapper
                 | CrubitFeature::Types
                 | CrubitFeature::Experimental
                 | CrubitFeature::AssumeLifetimes
@@ -655,6 +682,8 @@ mod tests {
                 | CrubitFeature::ReserveStandardMacros
                 | CrubitFeature::ThunklessAccessors
                 | CrubitFeature::InheritedFriendOperators
+                | CrubitFeature::StrongOrderingTraits
+                | CrubitFeature::ConstantArrays
         );
     }
 }

@@ -36,6 +36,7 @@
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Sema/Sema.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Regex.h"
 
 namespace crubit {
@@ -157,7 +158,7 @@ class Invocation {
     if (loc.isInvalid()) {
       return true;
     }
-    absl::string_view path = source_manager.getFilename(loc);
+    llvm::StringRef path = source_manager.getFilename(loc);
     if (path.empty()) {
       return true;
     }
@@ -330,6 +331,13 @@ class ImportContext {
   // other redeclarations of the decl.
   virtual bool IsFromProtoTarget(const clang::Decl& decl) const = 0;
 
+  // Like `clang::SourceManager::isInSystemHeader`, but also correct for files
+  // loaded from precompiled header modules. (Clang only applies
+  // `--system-header-prefix` when it looks up an `#include`, which doesn't
+  // happen for the headers of a module when it is built, so these are
+  // otherwise classified differently than when they are parsed textually.)
+  virtual bool IsInSystemHeader(clang::SourceLocation location) const = 0;
+
   // Returns true iff `label` has opted in to crubit support.
   virtual bool IsCrubitEnabledForTarget(const BazelLabel& label) const = 0;
 
@@ -416,8 +424,9 @@ class ImportContext {
   virtual std::optional<std::string> GetComment(
       const clang::Decl& decl) const = 0;
 
-  // Converts a Clang source location to IR. `name_info` may be null.
-  virtual std::string ConvertSourceLocation(
+  // Converts a Clang source location to a structured `DeclLocation`.
+  // `name_info` may be null.
+  virtual ir_proto::DeclLocation ConvertDeclLocation(
       clang::SourceLocation loc,
       clang::DeclarationNameInfo* absl_nullable name_info) const = 0;
 
