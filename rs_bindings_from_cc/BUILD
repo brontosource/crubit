@@ -71,6 +71,9 @@ deps_for_bindings(
         # Required for `Copy` trait assertions added to the generated Rust
         # code.
         "@crate_index//:static_assertions",  # v1
+        # Required for `::cxx::ExternType` impls (the `impl_cxx_extern_type`
+        # feature, on by default).
+        "@crate_index//:cxx",  # v1
     ],
     proc_macro_deps_for_generated_rs_file = [
         "//support:crubit_annotate",
