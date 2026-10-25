@@ -78,8 +78,10 @@ rust_api_from_cpp(
 rust_library(
     name = "key2_client",
     srcs = ["key2_client.rs"],
+    # OSS rules_rust looks up aliases by the crate's owner, which for `rust_api_from_cpp` is the
+    # C++ target.
     aliases = {
-        ":key2_cc_rust": "key2_cc_rust",
+        ":key2_cc": "key2_cc_rust",
     },
     edition = "2024",
     deps = [":key2_cc_rust"],
