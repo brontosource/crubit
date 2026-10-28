@@ -15,15 +15,18 @@ endif()
 
 include(FetchContent)
 
-FetchContent_Declare(
-  absl
-  GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
-  GIT_TAG 20260526.0
-  GIT_SHALLOW TRUE
-  FIND_PACKAGE_ARGS NAMES absl
-)
-
-FetchContent_MakeAvailable(absl)
+# Use an installed Abseil if there is one. (FetchContent_Declare's
+# FIND_PACKAGE_ARGS would do this, but needs CMake 3.24.)
+find_package(absl QUIET)
+if(NOT absl_FOUND)
+  FetchContent_Declare(
+    absl
+    GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+    GIT_TAG 20260526.0
+    GIT_SHALLOW TRUE
+  )
+  FetchContent_MakeAvailable(absl)
+endif()
 
 find_package(Protobuf QUIET)
 if(NOT Protobuf_FOUND)
@@ -35,7 +38,6 @@ if(NOT Protobuf_FOUND)
     Protobuf
     GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
     GIT_TAG main
-    FIND_PACKAGE_ARGS NAMES Protobuf
   )
   FetchContent_GetProperties(Protobuf)
   if(NOT protobuf_POPULATED)

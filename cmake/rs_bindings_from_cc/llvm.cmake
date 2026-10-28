@@ -104,7 +104,6 @@ function(_crubit_download_llvm out_root)
   FetchContent_Declare(crubit_llvm
     URL "${url}"
     ${hash}
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
   )
   FetchContent_MakeAvailable(crubit_llvm)
   set(${out_root} "${crubit_llvm_SOURCE_DIR}" PARENT_SCOPE)

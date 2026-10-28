@@ -217,7 +217,7 @@ Every download is checked against a pinned SHA-256 hash. If you change
 `CRUBIT_LLVM_VERSION` or `CRUBIT_LLVM_URL`, set `CRUBIT_LLVM_URL_HASH` too;
 otherwise the build warns that the download isn't verified.
 
-You need CMake 3.24 or later, Ninja, a C++20 compiler, and `rustup`. On Linux and
+You need CMake 3.22 or later, Ninja, a C++20 compiler, and `rustup`. On Linux and
 macOS, run from the root of the checkout:
 
 ```sh
